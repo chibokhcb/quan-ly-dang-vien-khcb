@@ -11,6 +11,7 @@ import { Members } from './pages/Members';
 import { MemberDetail } from './pages/MemberDetail';
 import { MyProfile } from './pages/MyProfile';
 import { ForeignTrips } from './pages/ForeignTrips';
+import { MeetingAbsences } from './pages/MeetingAbsences';
 import { Development } from './pages/Development';
 import { CandidateDetail } from './pages/CandidateDetail';
 import { AdmissionDossiers } from './pages/AdmissionDossiers';
@@ -48,6 +49,7 @@ const AppContent: React.FC = () => {
     }
     if (currentPath === '/me') return <MyProfile />;
     if (currentPath === '/foreign-trips') return <ForeignTrips />;
+    if (currentPath === '/meeting-absences') return <MeetingAbsences />;
     if (currentPath === '/development') {
       return <Development onNavigateCandidate={(id) => handleNavigate(`/development/${id}`)} />;
     }

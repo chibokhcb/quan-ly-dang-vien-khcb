@@ -16,6 +16,7 @@ import {
   UserAccount,
   AuditLog,
   MemberChangeRequest,
+  MeetingAbsenceRequest,
   AppSettings,
   RefItem,
   ProvinceItem,
@@ -29,6 +30,7 @@ import {
   INITIAL_ADMISSION_DOSSIERS,
   INITIAL_OFFICIALIZATION_DOSSIERS,
   INITIAL_CHANGE_REQUESTS,
+  INITIAL_ABSENCE_REQUESTS,
   INITIAL_USER_ACCOUNTS,
   INITIAL_AUDIT_LOGS,
   INITIAL_DOCUMENT_TEMPLATES,
@@ -48,6 +50,7 @@ const STORAGE_KEYS = {
   ADMISSIONS: 'qldv_admissions_v1',
   OFFICIALIZATIONS: 'qldv_officializations_v1',
   CHANGE_REQUESTS: 'qldv_change_requests_v1',
+  ABSENCE_REQUESTS: 'qldv_absence_requests_v1',
   POLICY_VERSIONS: 'qldv_policy_versions_v1',
   TEMPLATES: 'qldv_document_templates_v1',
   USERS: 'qldv_users_v1',
@@ -391,6 +394,135 @@ export class DataRepository {
         'FOREIGN_TRIP',
         id,
         `Xóa chuyến đi nước ngoài của ${removed.memberFullName} (${removed.destinationCountry})`
+      );
+      return true;
+    }
+    return false;
+  }
+
+  // --- MEETING ABSENCE REQUESTS ---
+  static getAbsenceRequests(): MeetingAbsenceRequest[] {
+    const list = loadStoredData<MeetingAbsenceRequest[]>(
+      STORAGE_KEYS.ABSENCE_REQUESTS,
+      INITIAL_ABSENCE_REQUESTS
+    );
+    return ensureUniqueIds(list, 'abs', STORAGE_KEYS.ABSENCE_REQUESTS);
+  }
+
+  static getAbsenceRequestsByMember(memberEmailOrUid: string): MeetingAbsenceRequest[] {
+    const all = this.getAbsenceRequests();
+    const cleanEmail = memberEmailOrUid.toLowerCase();
+    return all.filter(
+      (req) =>
+        req.memberEmail?.toLowerCase() === cleanEmail ||
+        req.createdBy?.toLowerCase() === cleanEmail ||
+        req.memberId === memberEmailOrUid
+    );
+  }
+
+  static saveAbsenceRequest(
+    data: Partial<MeetingAbsenceRequest>,
+    actorEmail: string
+  ): MeetingAbsenceRequest {
+    const requests = loadStoredData<MeetingAbsenceRequest[]>(
+      STORAGE_KEYS.ABSENCE_REQUESTS,
+      INITIAL_ABSENCE_REQUESTS
+    );
+    let saved: MeetingAbsenceRequest;
+    const index = data.id ? requests.findIndex((r) => r.id === data.id) : -1;
+
+    if (index >= 0) {
+      saved = {
+        ...requests[index],
+        ...data,
+        updatedAt: new Date().toISOString(),
+      };
+      requests[index] = saved;
+    } else {
+      saved = {
+        id: data.id || `abs-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        memberId: data.memberId || '',
+        memberFullName: data.memberFullName || 'ĐẢNG VIÊN',
+        staffCode: data.staffCode || '000000',
+        partyCardNumber: data.partyCardNumber || '',
+        memberEmail: data.memberEmail || actorEmail,
+        meetingPeriod: data.meetingPeriod || 'Kỳ họp Chi bộ',
+        meetingDate: data.meetingDate || '15/08/2026',
+        reason: data.reason || 'Lý do khác',
+        reasonDetail: data.reasonDetail || '',
+        notes: data.notes || '',
+        attachedFiles: data.attachedFiles || [],
+        status: data.status || 'PENDING',
+        createdAt: new Date().toISOString(),
+        createdBy: actorEmail,
+        updatedAt: new Date().toISOString(),
+        ...data,
+      };
+      requests.push(saved);
+    }
+
+    saveStoredData(STORAGE_KEYS.ABSENCE_REQUESTS, requests);
+    this.addAuditLog(
+      actorEmail,
+      index >= 0 ? 'UPDATE_ABSENCE_REQUEST' : 'CREATE_ABSENCE_REQUEST',
+      'MEETING_ABSENCE_REQUEST',
+      saved.id,
+      `Đảng viên ${saved.memberFullName} gửi/cập nhật đơn xin vắng họp: ${saved.meetingPeriod} (Lý do: ${saved.reason})`
+    );
+    return saved;
+  }
+
+  static reviewAbsenceRequest(
+    id: string,
+    status: 'APPROVED' | 'REJECTED',
+    reviewNotes: string,
+    reviewer: { uid?: string; email: string; name: string; role: string }
+  ): MeetingAbsenceRequest | undefined {
+    const requests = this.getAbsenceRequests();
+    const index = requests.findIndex((r) => r.id === id);
+
+    if (index >= 0) {
+      const now = new Date().toISOString();
+      requests[index] = {
+        ...requests[index],
+        status,
+        reviewedByUid: reviewer.uid || '',
+        reviewedByEmail: reviewer.email,
+        reviewedByName: reviewer.name,
+        reviewedByRole: reviewer.role,
+        reviewedAt: now,
+        reviewNotes: reviewNotes || (status === 'APPROVED' ? 'Đã duyệt' : 'Từ chối'),
+        updatedAt: now,
+      };
+
+      saveStoredData(STORAGE_KEYS.ABSENCE_REQUESTS, requests);
+
+      const statusText = status === 'APPROVED' ? 'Phê duyệt' : 'Từ chối';
+      this.addAuditLog(
+        reviewer.email,
+        status === 'APPROVED' ? 'APPROVE_ABSENCE_REQUEST' : 'REJECT_ABSENCE_REQUEST',
+        'MEETING_ABSENCE_REQUEST',
+        id,
+        `${statusText} đơn xin vắng họp của ${requests[index].memberFullName} (${requests[index].meetingPeriod}) bởi ${reviewer.name} (${reviewer.role})`
+      );
+
+      return requests[index];
+    }
+    return undefined;
+  }
+
+  static deleteAbsenceRequest(id: string, actorEmail: string): boolean {
+    const requests = this.getAbsenceRequests();
+    const index = requests.findIndex((r) => r.id === id);
+    if (index >= 0) {
+      const removed = requests.splice(index, 1)[0];
+      saveStoredData(STORAGE_KEYS.ABSENCE_REQUESTS, requests);
+      this.addAuditLog(
+        actorEmail,
+        'DELETE_ABSENCE_REQUEST',
+        'MEETING_ABSENCE_REQUEST',
+        id,
+        `Xóa đơn xin vắng họp của ${removed.memberFullName} (${removed.meetingPeriod})`
       );
       return true;
     }

@@ -6,6 +6,7 @@ import {
   Users,
   UserCheck,
   Globe,
+  CalendarOff,
   TrendingUp,
   FileCheck,
   Award,
@@ -40,7 +41,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpenMobile,
   onCloseMobile,
 }) => {
-  const { currentRole, hasRole } = useAuth();
+  const { currentRole, hasRole, canApprove } = useAuth();
+  const isAdmin = canApprove();
 
   const menuItems: MenuItem[] = [
     {
@@ -65,6 +67,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'Đi nước ngoài',
       path: '/foreign-trips',
       icon: Globe,
+      roles: [],
+    },
+    {
+      title: isAdmin ? 'Duyệt xin vắng' : 'Xin vắng họp',
+      path: '/meeting-absences',
+      icon: CalendarOff,
       roles: [],
     },
     {

@@ -25,6 +25,8 @@ export const Dashboard: React.FC<{ onNavigate: (path: string) => void }> = ({ on
   const admissions = DataRepository.getAdmissionDossiers();
   const officializations = DataRepository.getOfficializationDossiers();
   const changeRequests = DataRepository.getMemberChangeRequests().filter((r) => r.status === 'PENDING');
+  const absenceRequests = DataRepository.getAbsenceRequests();
+  const pendingAbsenceCount = absenceRequests.filter((a) => a.status === 'PENDING').length;
 
   // KPI Calculations
   const totalMembers = members.length;
@@ -160,6 +162,37 @@ export const Dashboard: React.FC<{ onNavigate: (path: string) => void }> = ({ on
             <span className="text-xs text-purple-700 font-semibold">đề nghị cập nhật hồ sơ</span>
           </div>
           <p className="text-[11px] text-gray-500 mt-1">Cần Bí thư/Chi ủy phê duyệt</p>
+        </div>
+      </div>
+
+      {/* Quick Banner for Meeting Absences if pending */}
+      <div
+        onClick={() => onNavigate('/meeting-absences')}
+        className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-300 rounded-xl p-4 flex items-center justify-between hover:bg-amber-100/50 transition cursor-pointer shadow-2xs"
+      >
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-500 text-red-950 flex items-center justify-center font-black shrink-0 shadow-xs">
+            {absenceRequests.length}
+          </div>
+          <div>
+            <div className="flex items-center space-x-2">
+              <h4 className="text-xs font-bold text-amber-950 uppercase">
+                Quản lý Xin vắng họp Chi bộ
+              </h4>
+              {pendingAbsenceCount > 0 && (
+                <span className="bg-amber-500 text-red-950 text-[10px] font-black px-2 py-0.5 rounded-full animate-pulse">
+                  {pendingAbsenceCount} đơn chờ duyệt
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-amber-900 mt-0.5">
+              Đảng viên nộp đơn xin vắng họp, Ban Chi ủy (Bí thư/Phó Bí thư/Chi ủy viên) phê duyệt tập trung &amp; xem thống kê chi tiết.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-1 text-xs font-bold text-amber-900 group">
+          <span>Xem chi tiết</span>
+          <ArrowRight className="w-4 h-4 text-amber-900" />
         </div>
       </div>
 

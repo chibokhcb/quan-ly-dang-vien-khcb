@@ -102,6 +102,42 @@ export type TripRelative = 'Cha' | 'Mẹ' | 'Người thân';
 export type TripApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type TripStatus = 'UPCOMING' | 'ABROAD' | 'RETURNED' | 'OVERDUE';
 
+export type MeetingAbsenceStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export type AbsenceReason =
+  | 'Đi công tác'
+  | 'Bệnh / Sức khỏe'
+  | 'Việc gia đình / Việc riêng'
+  | 'Lý do khác';
+
+export interface MeetingAbsenceRequest {
+  id: string;
+  memberId: string;
+  memberFullName: string;
+  staffCode: string; // MSCB
+  partyCardNumber?: string;
+  memberEmail: string;
+  meetingPeriod: string; // e.g. "Kỳ họp Chi bộ tháng 08/2026"
+  meetingDate: string; // dd/MM/yyyy
+  reason: AbsenceReason;
+  reasonDetail?: string;
+  notes?: string;
+  attachedFiles?: Array<{ name: string; url: string; size?: number; type?: string }>;
+  status: MeetingAbsenceStatus;
+
+  // Single Approver Metadata (Bí thư / Phó Bí thư / Chi ủy viên)
+  reviewedByUid?: string;
+  reviewedByEmail?: string;
+  reviewedByName?: string;
+  reviewedByRole?: string; // e.g. "Bí thư Chi bộ", "Phó Bí thư Chi bộ", "Chi ủy viên"
+  reviewedAt?: string; // ISO timestamp
+  reviewNotes?: string;
+
+  createdAt: string;
+  createdBy?: string;
+  updatedAt: string;
+}
+
 export interface ForeignTrip {
   id: string;
   memberId: string;
