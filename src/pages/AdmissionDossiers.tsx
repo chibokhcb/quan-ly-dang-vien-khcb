@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 export const AdmissionDossiers: React.FC<{ onNavigateDetail: (id: string) => void }> = ({ onNavigateDetail }) => {
-  const { canApprove, currentUser } = useAuth();
+  const { canApprove, currentUser, canDelete } = useAuth();
   const [dossiers, setDossiers] = useState<AdmissionDossier[]>(() => DataRepository.getAdmissionDossiers());
   const [activeTab, setActiveTab] = useState<'ACTIVE' | 'ARCHIVED'>('ACTIVE');
 
@@ -107,7 +107,7 @@ export const AdmissionDossiers: React.FC<{ onNavigateDetail: (id: string) => voi
   };
 
   const handleDelete = () => {
-    if (!deletingDossier) return;
+    if (!deletingDossier || !canDelete()) return;
     DataRepository.deleteAdmissionDossier(deletingDossier.id, currentUser?.email || 'admin');
     refreshData();
     setDeletingDossier(null);
@@ -266,16 +266,18 @@ export const AdmissionDossiers: React.FC<{ onNavigateDetail: (id: string) => voi
                     {dos.isArchived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
                   </button>
 
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeletingDossier(dos);
-                    }}
-                    className="p-1.5 bg-red-50 hover:bg-red-100 text-red-800 rounded-lg"
-                    title="Xóa hồ sơ"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {canDelete() && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeletingDossier(dos);
+                      }}
+                      className="p-1.5 bg-red-50 hover:bg-red-100 text-red-800 rounded-lg"
+                      title="Xóa hồ sơ"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

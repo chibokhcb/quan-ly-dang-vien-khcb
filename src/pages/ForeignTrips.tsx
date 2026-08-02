@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 
 export const ForeignTrips: React.FC = () => {
-  const { currentUser, canApprove } = useAuth();
+  const { currentUser, canApprove, canDelete } = useAuth();
   const [trips, setTrips] = useState<ForeignTrip[]>(() => DataRepository.getForeignTrips());
   const members = DataRepository.getPartyMembers();
 
@@ -143,7 +143,7 @@ export const ForeignTrips: React.FC = () => {
   };
 
   const handleDeleteTrip = () => {
-    if (!deletingTrip) return;
+    if (!deletingTrip || !canDelete()) return;
     DataRepository.deleteForeignTrip(deletingTrip.id, currentUser?.email || 'user@ctump.edu.vn');
     refreshData();
     setDeletingTrip(null);
@@ -386,13 +386,15 @@ export const ForeignTrips: React.FC = () => {
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
-                        <button
-                          onClick={() => setDeletingTrip(t)}
-                          className="p-1 text-red-700 hover:bg-red-100 rounded transition"
-                          title="Xóa chuyến đi"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {canDelete() && (
+                          <button
+                            onClick={() => setDeletingTrip(t)}
+                            className="p-1 text-red-700 hover:bg-red-100 rounded transition"
+                            title="Xóa chuyến đi"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -422,10 +424,12 @@ export const ForeignTrips: React.FC = () => {
                     <Pencil className="w-3 h-3" />
                     <span>Sửa</span>
                   </button>
-                  <button onClick={() => setDeletingTrip(t)} className="text-red-700 hover:underline font-bold flex items-center space-x-1">
-                    <Trash2 className="w-3 h-3" />
-                    <span>Xóa</span>
-                  </button>
+                  {canDelete() && (
+                    <button onClick={() => setDeletingTrip(t)} className="text-red-700 hover:underline font-bold flex items-center space-x-1">
+                      <Trash2 className="w-3 h-3" />
+                      <span>Xóa</span>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

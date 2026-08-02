@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 export const OfficializationDossiers: React.FC<{ onNavigateDetail: (id: string) => void }> = ({ onNavigateDetail }) => {
-  const { canApprove, currentUser } = useAuth();
+  const { canApprove, currentUser, canDelete } = useAuth();
   const [dossiers, setDossiers] = useState<OfficializationDossier[]>(() => DataRepository.getOfficializationDossiers());
   const [activeTab, setActiveTab] = useState<'ACTIVE' | 'ARCHIVED'>('ACTIVE');
 
@@ -119,7 +119,7 @@ export const OfficializationDossiers: React.FC<{ onNavigateDetail: (id: string) 
   };
 
   const handleDelete = () => {
-    if (!deletingDossier) return;
+    if (!deletingDossier || !canDelete()) return;
     DataRepository.deleteOfficializationDossier(deletingDossier.id, currentUser?.email || 'admin');
     refreshData();
     setDeletingDossier(null);
@@ -293,16 +293,18 @@ export const OfficializationDossiers: React.FC<{ onNavigateDetail: (id: string) 
                       {dos.isArchived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
                     </button>
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeletingDossier(dos);
-                      }}
-                      className="p-1.5 bg-red-50 hover:bg-red-100 text-red-800 rounded-lg"
-                      title="Xóa hồ sơ"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {canDelete() && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeletingDossier(dos);
+                        }}
+                        className="p-1.5 bg-red-50 hover:bg-red-100 text-red-800 rounded-lg"
+                        title="Xóa hồ sơ"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

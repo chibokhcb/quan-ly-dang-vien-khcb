@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 
 export const MemberDetail: React.FC<{ memberId: string; onBack: () => void }> = ({ memberId, onBack }) => {
-  const { currentUser, canApprove } = useAuth();
+  const { currentUser, canApprove, canDelete } = useAuth();
   const [member, setMember] = useState(() => DataRepository.getPartyMemberById(memberId));
   const [activeTab, setActiveTab] = useState<number>(1);
 
@@ -66,7 +66,7 @@ export const MemberDetail: React.FC<{ memberId: string; onBack: () => void }> = 
 
   const handleConfirmDelete = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!member) return;
+    if (!member || !canDelete()) return;
 
     let categoryText = 'Chuyển sinh hoạt Đảng sang đơn vị/Chi bộ khác';
     let newStatus: ActivityStatus | undefined = 'Gián đoạn sinh hoạt';
@@ -157,13 +157,15 @@ export const MemberDetail: React.FC<{ memberId: string; onBack: () => void }> = 
               <span>Điều tên Đảng viên</span>
             </button>
 
-            <button
-              onClick={() => setIsDeleteModalOpen(true)}
-              className="bg-red-800 hover:bg-red-900 text-white text-xs font-bold px-3 py-2 rounded-lg shadow transition flex items-center space-x-1.5"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span>Xóa / Điều chuyển</span>
-            </button>
+            {canDelete() && (
+              <button
+                onClick={() => setIsDeleteModalOpen(true)}
+                className="bg-red-800 hover:bg-red-900 text-white text-xs font-bold px-3 py-2 rounded-lg shadow transition flex items-center space-x-1.5"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Xóa / Điều chuyển</span>
+              </button>
+            )}
 
             <button className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-3 py-2 rounded-lg shadow transition flex items-center space-x-1">
               <CheckCircle2 className="w-4 h-4" />

@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 export const Development: React.FC<{ onNavigateCandidate: (id: string) => void }> = ({ onNavigateCandidate }) => {
-  const { currentUser, canApprove } = useAuth();
+  const { currentUser, canApprove, canDelete } = useAuth();
   const [candidates, setCandidates] = useState<DevelopmentCandidate[]>(() => DataRepository.getDevelopmentCandidates());
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [searchQuery, setSearchQuery] = useState('');
@@ -111,7 +111,7 @@ export const Development: React.FC<{ onNavigateCandidate: (id: string) => void }
   };
 
   const handleDeleteCandidate = () => {
-    if (!deletingCandidate) return;
+    if (!deletingCandidate || !canDelete()) return;
     DataRepository.deleteDevelopmentCandidate(deletingCandidate.id, currentUser?.email || 'admin');
     refreshData();
     setDeletingCandidate(null);
@@ -223,16 +223,18 @@ export const Development: React.FC<{ onNavigateCandidate: (id: string) => void }
                   <Pencil className="w-3.5 h-3.5 text-blue-700" />
                   <span>Sửa thông tin</span>
                 </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeletingCandidate(cand);
-                  }}
-                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-900 font-bold rounded-md transition flex items-center space-x-1"
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-red-700" />
-                  <span>Xóa hồ sơ</span>
-                </button>
+                {canDelete() && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeletingCandidate(cand);
+                    }}
+                    className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-900 font-bold rounded-md transition flex items-center space-x-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-red-700" />
+                    <span>Xóa hồ sơ</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>

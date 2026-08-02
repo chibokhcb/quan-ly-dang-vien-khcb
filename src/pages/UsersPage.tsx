@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 export const UsersPage: React.FC = () => {
-  const { currentUser, canAddUser } = useAuth();
+  const { currentUser, canAddUser, canDelete } = useAuth();
   const [users, setUsers] = useState<UserAccount[]>(() => DataRepository.getUsers());
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -107,7 +107,7 @@ export const UsersPage: React.FC = () => {
   };
 
   const handleDeleteUser = () => {
-    if (!deletingUser) return;
+    if (!deletingUser || !canDelete()) return;
     DataRepository.deleteUser(deletingUser.uid, currentUser?.email || 'system');
     refreshUsers();
     setDeletingUser(null);
@@ -292,13 +292,15 @@ export const UsersPage: React.FC = () => {
                           >
                             <Edit className="w-4 h-4" />
                           </button>
-                          <button
-                            onClick={() => setDeletingUser(u)}
-                            title="Xóa tài khoản"
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition cursor-pointer"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {canDelete() && (
+                            <button
+                              onClick={() => setDeletingUser(u)}
+                              title="Xóa tài khoản"
+                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

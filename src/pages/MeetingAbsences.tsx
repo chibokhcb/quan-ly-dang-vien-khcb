@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 
 export const MeetingAbsences: React.FC = () => {
-  const { currentUser, canApprove } = useAuth();
+  const { currentUser, canApprove, canDelete } = useAuth();
   const isAdmin = canApprove();
 
   // Active Tab: 'my_list' (or 'all_list' for admin), 'pending_approvals', 'statistics'
@@ -256,6 +256,7 @@ export const MeetingAbsences: React.FC = () => {
 
   // Delete Request
   const handleDeleteRequest = (id: string) => {
+    if (!canDelete()) return;
     if (confirm('Bạn có chắc chắn muốn xóa đơn xin vắng họp này không?')) {
       DataRepository.deleteAbsenceRequest(id, currentUser?.email || 'chibokhcb@ctump.edu.vn');
       loadData();
@@ -714,7 +715,7 @@ export const MeetingAbsences: React.FC = () => {
                               >
                                 Chi tiết
                               </button>
-                              {(isAdmin || r.status === 'PENDING') && (
+                              {canDelete() && (
                                 <button
                                   onClick={() => handleDeleteRequest(r.id)}
                                   className="text-red-600 hover:text-red-800 p-0.5"

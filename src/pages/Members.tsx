@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 
 export const Members: React.FC<{ onNavigate: (path: string) => void }> = ({ onNavigate }) => {
-  const { currentUser, isFullSecretary, requiresSecretaryApproval, canEditMember, canApprove } = useAuth();
+  const { currentUser, isFullSecretary, requiresSecretaryApproval, canEditMember, canApprove, canDelete } = useAuth();
   const [members, setMembers] = useState<PartyMember[]>(() => DataRepository.getPartyMembers());
 
   // Search & Filter state
@@ -187,7 +187,7 @@ export const Members: React.FC<{ onNavigate: (path: string) => void }> = ({ onNa
   // Confirm Delete
   const handleConfirmDelete = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!deleteMember) return;
+    if (!deleteMember || !canDelete()) return;
 
     let categoryText = 'Chuyển sinh hoạt Đảng sang đơn vị/Chi bộ khác';
     let newStatus: ActivityStatus | undefined = 'Gián đoạn sinh hoạt';
@@ -406,7 +406,7 @@ export const Members: React.FC<{ onNavigate: (path: string) => void }> = ({ onNa
                           <Edit className="w-4 h-4" />
                         </button>
                       )}
-                      {(isFullSecretary || requiresSecretaryApproval) && (
+                      {canDelete() && (
                         <button
                           onClick={() => handleOpenDelete(m)}
                           className="p-1.5 text-red-700 hover:bg-red-100 rounded-lg transition"

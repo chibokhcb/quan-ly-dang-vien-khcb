@@ -15,6 +15,7 @@ interface AuthContextType {
   hasRole: (allowedRoles: UserRole[]) => boolean;
   canEditMember: (memberUid?: string, memberEmail?: string) => boolean;
   canApprove: () => boolean;
+  canDelete: () => boolean;
   isDeviceRemembered: (email: string) => boolean;
   rememberDevice: (email: string) => void;
 }
@@ -197,6 +198,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return isAdminUser || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ORGANIZATION_ADMIN';
   };
 
+  const canDelete = (): boolean => {
+    if (!currentUser || currentUser.role === 'GUEST') return false;
+    return isAdminUser;
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -212,6 +218,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         hasRole,
         canEditMember,
         canApprove,
+        canDelete,
         isDeviceRemembered,
         rememberDevice,
       }}
