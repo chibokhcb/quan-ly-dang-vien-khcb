@@ -16,6 +16,7 @@ import {
   History,
   BookOpen,
   Settings,
+  X,
 } from 'lucide-react';
 
 interface MenuItem {
@@ -26,9 +27,18 @@ interface MenuItem {
   badgeCount?: number;
 }
 
-export const Sidebar: React.FC<{ activePath: string; onNavigate: (path: string) => void }> = ({
+interface SidebarProps {
+  activePath: string;
+  onNavigate: (path: string) => void;
+  isOpenMobile?: boolean;
+  onCloseMobile?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({
   activePath,
   onNavigate,
+  isOpenMobile,
+  onCloseMobile,
 }) => {
   const { currentRole, hasRole } = useAuth();
 
@@ -126,50 +136,86 @@ export const Sidebar: React.FC<{ activePath: string; onNavigate: (path: string) 
     return hasRole(item.roles);
   });
 
+  const handleItemClick = (path: string) => {
+    onNavigate(path);
+    if (onCloseMobile) {
+      onCloseMobile();
+    }
+  };
+
   return (
-    <aside className="w-64 bg-[#1E1E1B] text-[#E5E5E5] border-r border-[#333] flex flex-col shrink-0 min-h-[calc(100vh-60px)]">
-      <div className="px-4 py-3 bg-[#151513] border-b border-[#333]">
-        <p className="text-[11px] font-semibold text-[#7A7670] uppercase tracking-wider">
-          DANH MỤC QUẢN LÝ
-        </p>
-        <p className="text-xs font-bold text-[#FFD700] mt-0.5">Vai trò: {currentRole}</p>
-      </div>
+    <>
+      {/* Mobile Backdrop */}
+      {isOpenMobile && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs md:hidden"
+          onClick={onCloseMobile}
+        />
+      )}
 
-      <nav className="flex-1 px-2 py-3 space-y-1 overflow-y-auto">
-        {visibleItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activePath === item.path || (item.path !== '/' && activePath.startsWith(item.path));
-
-          return (
+      {/* Sidebar Container */}
+      <aside
+        className={`bg-[#1E1E1B] text-[#E5E5E5] border-r border-[#333] flex flex-col shrink-0 transition-transform duration-300 ease-in-out z-50 ${
+          isOpenMobile
+            ? 'fixed top-0 left-0 bottom-0 w-72 shadow-2xl translate-x-0'
+            : 'fixed top-0 left-0 bottom-0 w-72 -translate-x-full md:translate-x-0 md:static md:w-64 md:min-h-[calc(100vh-60px)]'
+        }`}
+      >
+        <div className="px-4 py-3 bg-[#151513] border-b border-[#333] flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-semibold text-[#7A7670] uppercase tracking-wider">
+              DANH MỤC QUẢN LÝ
+            </p>
+            <p className="text-xs font-bold text-[#FFD700] mt-0.5">Vai trò: {currentRole}</p>
+          </div>
+          {onCloseMobile && (
             <button
-              key={item.path}
-              onClick={() => onNavigate(item.path)}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-xs font-medium transition-all ${
-                isActive
-                  ? 'bg-[#2D2D2B] text-white font-bold shadow border-l-4 border-[#FFD700]'
-                  : 'text-[#D4D0C8] hover:bg-[#2A2A27] hover:text-white'
-              }`}
+              onClick={onCloseMobile}
+              className="p-1.5 text-stone-400 hover:text-white rounded-lg hover:bg-stone-800 transition md:hidden cursor-pointer"
+              title="Đóng menu"
             >
-              <div className="flex items-center space-x-3 truncate">
-                <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#FFD700]' : 'text-[#7A7670]'}`} />
-                <span className="truncate">{item.title}</span>
-              </div>
-              {item.badgeCount && item.badgeCount > 0 && (
-                <span className="ml-2 bg-[#FFD700] text-[#8B1D1D] text-[10px] font-black px-1.5 py-0.5 rounded-full">
-                  {item.badgeCount}
-                </span>
-              )}
+              <X className="w-5 h-5" />
             </button>
-          );
-        })}
-      </nav>
+          )}
+        </div>
 
-      {/* Footer info in sidebar */}
-      <div className="p-3 bg-[#151513] border-t border-[#333] text-[11px] text-[#7A7670] space-y-1">
-        <p className="font-semibold text-[#D4D0C8]">Chi bộ Khoa học Cơ bản</p>
-        <p className="text-[10px]">ĐẢNG ỦY TRƯỜNG ĐẠI HỌC Y DƯỢC CẦN THƠ</p>
-        <p className="text-[10px] text-[#7A7670]">Phiên bản 4.0 Pro (2026)</p>
-      </div>
-    </aside>
+        <nav className="flex-1 px-2 py-3 space-y-1 overflow-y-auto">
+          {visibleItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activePath === item.path || (item.path !== '/' && activePath.startsWith(item.path));
+
+            return (
+              <button
+                key={item.path}
+                onClick={() => handleItemClick(item.path)}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-[#2D2D2B] text-white font-bold shadow-xs border-l-4 border-[#FFD700]'
+                    : 'text-[#D4D0C8] hover:bg-[#2A2A27] hover:text-white'
+                }`}
+              >
+                <div className="flex items-center space-x-3 truncate">
+                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#FFD700]' : 'text-[#7A7670]'}`} />
+                  <span className="truncate">{item.title}</span>
+                </div>
+                {item.badgeCount && item.badgeCount > 0 && (
+                  <span className="ml-2 bg-[#FFD700] text-[#8B1D1D] text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                    {item.badgeCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Footer info in sidebar */}
+        <div className="p-3 bg-[#151513] border-t border-[#333] text-[11px] text-[#7A7670] space-y-1">
+          <p className="font-semibold text-[#D4D0C8]">Chi bộ Khoa học Cơ bản</p>
+          <p className="text-[10px]">ĐẢNG ỦY TRƯỜNG ĐẠI HỌC Y DƯỢC CẦN THƠ</p>
+          <p className="text-[10px] text-[#7A7670]">Phiên bản 4.0 Pro (2026)</p>
+        </div>
+      </aside>
+    </>
   );
 };
+

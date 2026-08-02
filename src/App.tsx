@@ -28,40 +28,46 @@ import { SettingsPage } from './pages/SettingsPage';
 const AppContent: React.FC = () => {
   const { currentUser, isGuest } = useAuth();
   const [currentPath, setCurrentPath] = useState<string>('/dashboard');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
   if (!currentUser) {
     return <Login onLoginSuccess={() => setCurrentPath('/dashboard')} />;
   }
 
+  const handleNavigate = (path: string) => {
+    setCurrentPath(path);
+    setIsMobileMenuOpen(false);
+  };
+
   const renderPage = () => {
-    if (currentPath === '/dashboard') return <Dashboard onNavigate={(path) => setCurrentPath(path)} />;
-    if (currentPath === '/members') return <Members onNavigate={(path) => setCurrentPath(path)} />;
+    if (currentPath === '/dashboard') return <Dashboard onNavigate={handleNavigate} />;
+    if (currentPath === '/members') return <Members onNavigate={handleNavigate} />;
     if (currentPath.startsWith('/members/')) {
       const id = currentPath.split('/members/')[1];
-      return <MemberDetail memberId={id} onBack={() => setCurrentPath('/members')} />;
+      return <MemberDetail memberId={id} onBack={() => handleNavigate('/members')} />;
     }
     if (currentPath === '/me') return <MyProfile />;
     if (currentPath === '/foreign-trips') return <ForeignTrips />;
     if (currentPath === '/development') {
-      return <Development onNavigateCandidate={(id) => setCurrentPath(`/development/${id}`)} />;
+      return <Development onNavigateCandidate={(id) => handleNavigate(`/development/${id}`)} />;
     }
     if (currentPath.startsWith('/development/')) {
       const id = currentPath.split('/development/')[1];
-      return <CandidateDetail candidateId={id} onBack={() => setCurrentPath('/development')} />;
+      return <CandidateDetail candidateId={id} onBack={() => handleNavigate('/development')} />;
     }
     if (currentPath === '/admission-dossiers') {
-      return <AdmissionDossiers onNavigateDetail={(id) => setCurrentPath(`/admission-dossiers/${id}`)} />;
+      return <AdmissionDossiers onNavigateDetail={(id) => handleNavigate(`/admission-dossiers/${id}`)} />;
     }
     if (currentPath.startsWith('/admission-dossiers/')) {
       const id = currentPath.split('/admission-dossiers/')[1];
-      return <AdmissionDossierDetail dossierId={id} onBack={() => setCurrentPath('/admission-dossiers')} />;
+      return <AdmissionDossierDetail dossierId={id} onBack={() => handleNavigate('/admission-dossiers')} />;
     }
     if (currentPath === '/officialization-dossiers') {
-      return <OfficializationDossiers onNavigateDetail={(id) => setCurrentPath(`/officialization-dossiers/${id}`)} />;
+      return <OfficializationDossiers onNavigateDetail={(id) => handleNavigate(`/officialization-dossiers/${id}`)} />;
     }
     if (currentPath.startsWith('/officialization-dossiers/')) {
       const id = currentPath.split('/officialization-dossiers/')[1];
-      return <OfficializationDossierDetail dossierId={id} onBack={() => setCurrentPath('/officialization-dossiers')} />;
+      return <OfficializationDossierDetail dossierId={id} onBack={() => handleNavigate('/officialization-dossiers')} />;
     }
     if (currentPath === '/templates') return <Templates />;
     if (currentPath === '/approvals') return <Approvals />;
@@ -71,22 +77,30 @@ const AppContent: React.FC = () => {
     if (currentPath === '/policy-versions') return <PolicyVersions />;
     if (currentPath === '/settings') return <SettingsPage />;
 
-    return <Dashboard onNavigate={(path) => setCurrentPath(path)} />;
+    return <Dashboard onNavigate={handleNavigate} />;
   };
 
   return (
     <div className="min-h-screen bg-[#F5F2ED] flex flex-col font-sans text-[#2D2D2D] antialiased selection:bg-[#FFD700]/30">
-      <Navbar />
+      <Navbar
+        isMobileMenuOpen={isMobileMenuOpen}
+        onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+      />
       {isGuest && (
-        <div className="bg-amber-100 border-b border-amber-300 px-4 py-2 text-xs font-semibold text-amber-950 flex items-center justify-between">
+        <div className="bg-amber-100 border-b border-amber-300 px-3 py-2 text-[11px] sm:text-xs font-semibold text-amber-950 flex items-center justify-between">
           <span>
             ℹ️ <strong>Chế độ xem thông tin (Khách):</strong> Tài khoản email <code className="bg-amber-200 px-1 rounded font-mono text-amber-900">{currentUser.email}</code> chưa được phân quyền quản trị trong hệ thống. Bạn có quyền xem toàn bộ dữ liệu, liên hệ Bí thư để được cập nhật phân quyền bổ sung.
           </span>
         </div>
       )}
-      <div className="flex flex-1">
-        <Sidebar activePath={currentPath} onNavigate={(path) => setCurrentPath(path)} />
-        <main className="flex-1 p-6 overflow-y-auto max-w-7xl mx-auto w-full">{renderPage()}</main>
+      <div className="flex flex-1 relative">
+        <Sidebar
+          activePath={currentPath}
+          onNavigate={handleNavigate}
+          isOpenMobile={isMobileMenuOpen}
+          onCloseMobile={() => setIsMobileMenuOpen(false)}
+        />
+        <main className="flex-1 p-3 sm:p-6 overflow-y-auto max-w-7xl mx-auto w-full min-w-0">{renderPage()}</main>
       </div>
       <Footer />
     </div>
