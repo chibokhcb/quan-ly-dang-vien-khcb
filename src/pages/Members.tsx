@@ -145,7 +145,27 @@ export const Members: React.FC<{ onNavigate: (path: string) => void }> = ({ onNa
   const handleSaveMember = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedMember?.fullName) return;
-    DataRepository.savePartyMember(selectedMember, currentUser?.email || 'admin');
+
+    if (!canApprove()) {
+      // Regular member editing their own record -> requires approval from 1 of 4 admin accounts
+      const changeReq: MemberChangeRequest = {
+        id: `cr-${Date.now()}`,
+        memberId: selectedMember.id,
+        memberFullName: selectedMember.fullName,
+        requestedByUid: currentUser?.uid || '',
+        requestedByEmail: currentUser?.email || '',
+        requestedAt: new Date().toISOString(),
+        beforeData: DataRepository.getPartyMemberById(selectedMember.id) || {},
+        requestedData: selectedMember,
+        changedFields: ['Thông tin cá nhân'],
+        reason: 'Đảng viên đề nghị cập nhật điều chỉnh thông tin cá nhân',
+        status: 'PENDING',
+      };
+      DataRepository.saveMemberChangeRequest(changeReq, currentUser?.email || 'user');
+      alert('Đã gửi yêu cầu cập nhật thông tin cá nhân! Thay đổi sẽ có hiệu lực sau khi 1 trong 4 tài khoản Ban Chi ủy (chibokhcb, ntttram, nthung, letran) phê duyệt.');
+    } else {
+      DataRepository.savePartyMember(selectedMember, currentUser?.email || 'admin');
+    }
     refreshData();
     setIsEditModalOpen(false);
   };

@@ -27,6 +27,21 @@ export const ForeignTrips: React.FC = () => {
   const [trips, setTrips] = useState<ForeignTrip[]>(() => DataRepository.getForeignTrips());
   const members = DataRepository.getPartyMembers();
 
+  const canEditTrip = (t: ForeignTrip): boolean => {
+    if (canApprove()) return true;
+    if (!currentUser || currentUser.role === 'GUEST') return false;
+
+    const userEmail = currentUser.email?.toLowerCase();
+    const userName = currentUser.fullName?.toUpperCase();
+    const userStaffCode = currentUser.staffCode;
+
+    if (t.createdBy && t.createdBy.toLowerCase() === userEmail) return true;
+    if (t.staffCode && userStaffCode && t.staffCode === userStaffCode) return true;
+    if (t.memberFullName && userName && t.memberFullName.toUpperCase() === userName) return true;
+
+    return false;
+  };
+
   const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
   const [searchQuery, setSearchQuery] = useState('');
   const [purposeFilter, setPurposeFilter] = useState<string>('ALL');
@@ -379,13 +394,15 @@ export const ForeignTrips: React.FC = () => {
                     </td>
                     <td className="p-2.5 text-center">
                       <div className="flex items-center justify-center space-x-1">
-                        <button
-                          onClick={() => handleOpenEditModal(t)}
-                          className="p-1 text-blue-700 hover:bg-blue-100 rounded transition"
-                          title="Sửa chuyến đi"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
+                        {canEditTrip(t) && (
+                          <button
+                            onClick={() => handleOpenEditModal(t)}
+                            className="p-1 text-blue-700 hover:bg-blue-100 rounded transition"
+                            title="Sửa chuyến đi"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         {canDelete() && (
                           <button
                             onClick={() => setDeletingTrip(t)}
@@ -420,10 +437,12 @@ export const ForeignTrips: React.FC = () => {
                 </p>
                 <p className="text-[11px] text-gray-500 italic">Cơ quan tiếp nhận: {t.agency || '---'}</p>
                 <div className="flex justify-end space-x-2 pt-2 border-t text-xs">
-                  <button onClick={() => handleOpenEditModal(t)} className="text-blue-700 hover:underline font-bold flex items-center space-x-1">
-                    <Pencil className="w-3 h-3" />
-                    <span>Sửa</span>
-                  </button>
+                  {canEditTrip(t) && (
+                    <button onClick={() => handleOpenEditModal(t)} className="text-blue-700 hover:underline font-bold flex items-center space-x-1">
+                      <Pencil className="w-3 h-3" />
+                      <span>Sửa</span>
+                    </button>
+                  )}
                   {canDelete() && (
                     <button onClick={() => setDeletingTrip(t)} className="text-red-700 hover:underline font-bold flex items-center space-x-1">
                       <Trash2 className="w-3 h-3" />

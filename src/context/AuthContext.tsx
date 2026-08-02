@@ -179,23 +179,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const canEditMember = (memberUid?: string, memberEmail?: string, memberStaffCode?: string): boolean => {
     if (!currentUser || currentUser.role === 'GUEST') return false;
-    // Admins (Secretary, Vice Secretary, Committee member, Super Admin, Org Admin) can edit all members
-    if (isAdminUser || isFullSecretary || requiresSecretaryApproval || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ORGANIZATION_ADMIN') {
+    // The 4 Ban Chi ủy / Admin accounts can edit all members
+    if (isAdminUser) {
       return true;
     }
     // Regular Party Member can ONLY edit/update their OWN profile/information
-    if (currentUser.role === 'PARTY_MEMBER') {
-      if (memberUid && currentUser.uid === memberUid) return true;
-      if (memberEmail && currentUser.email.toLowerCase() === memberEmail.toLowerCase()) return true;
-      if (memberStaffCode && currentUser.staffCode === memberStaffCode) return true;
-      return false;
-    }
+    if (memberUid && currentUser.uid === memberUid) return true;
+    if (memberEmail && currentUser.email?.toLowerCase() === memberEmail.toLowerCase()) return true;
+    if (memberStaffCode && currentUser.staffCode && currentUser.staffCode === memberStaffCode) return true;
     return false;
   };
 
   const canApprove = (): boolean => {
     if (!currentUser || currentUser.role === 'GUEST') return false;
-    return isAdminUser || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ORGANIZATION_ADMIN';
+    return isAdminUser;
   };
 
   const canDelete = (): boolean => {

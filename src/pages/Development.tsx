@@ -20,6 +20,28 @@ import {
 export const Development: React.FC<{ onNavigateCandidate: (id: string) => void }> = ({ onNavigateCandidate }) => {
   const { currentUser, canApprove, canDelete } = useAuth();
   const [candidates, setCandidates] = useState<DevelopmentCandidate[]>(() => DataRepository.getDevelopmentCandidates());
+
+  const canEditCandidate = (cand: DevelopmentCandidate): boolean => {
+    if (canApprove()) return true;
+    if (!currentUser || currentUser.role === 'GUEST') return false;
+
+    const userEmail = currentUser.email?.toLowerCase();
+    const userName = currentUser.fullName?.toUpperCase();
+    const userStaffCode = currentUser.staffCode;
+
+    const m1 = cand.mentor1;
+    const m2 = cand.mentor2;
+
+    const isMentor1 = (m1?.email && m1.email.toLowerCase() === userEmail) ||
+                      (m1?.fullName && m1.fullName.toUpperCase() === userName) ||
+                      (m1?.email && userStaffCode && m1.email.includes(userStaffCode));
+
+    const isMentor2 = (m2?.email && m2.email.toLowerCase() === userEmail) ||
+                      (m2?.fullName && m2.fullName.toUpperCase() === userName) ||
+                      (m2?.email && userStaffCode && m2.email.includes(userStaffCode));
+
+    return Boolean(isMentor1 || isMentor2);
+  };
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -216,14 +238,16 @@ export const Development: React.FC<{ onNavigateCandidate: (id: string) => void }
               </button>
 
               <div className="flex items-center justify-between text-xs pt-1">
-                <button
-                  onClick={(e) => handleOpenEdit(cand, e)}
-                  className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 font-bold rounded-md transition flex items-center space-x-1"
-                >
-                  <Pencil className="w-3.5 h-3.5 text-blue-700" />
-                  <span>Sửa thông tin</span>
-                </button>
-                {canDelete() && (
+                {canEditCandidate(cand) && (
+                  <button
+                    onClick={(e) => handleOpenEdit(cand, e)}
+                    className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 font-bold rounded-md transition flex items-center space-x-1"
+                  >
+                    <Pencil className="w-3.5 h-3.5 text-blue-700" />
+                    <span>Sửa thông tin</span>
+                  </button>
+                )}
+                {(canDelete() || canEditCandidate(cand)) && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

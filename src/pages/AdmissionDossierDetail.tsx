@@ -10,9 +10,13 @@ export const AdmissionDossierDetail: React.FC<{ dossierId: string; onBack: () =>
   const dossiers = DataRepository.getAdmissionDossiers();
   const dossier = dossiers.find((d) => d.id === dossierId) || dossiers[0];
 
-  const [groupA, setGroupA] = useState<AdmissionDossierItem[]>(dossier?.itemsGroupA || []);
-  const [groupB, setGroupB] = useState<AdmissionDossierItem[]>(dossier?.itemsGroupB || []);
-  const [groupC, setGroupC] = useState<AdmissionDossierItem[]>(dossier?.itemsGroupC || []);
+  const isOwnDossier = currentUser ? (
+    (dossier?.candidateEmail && dossier.candidateEmail.toLowerCase() === currentUser.email?.toLowerCase()) ||
+    (dossier?.candidateFullName && dossier.candidateFullName.toUpperCase() === currentUser.fullName?.toUpperCase()) ||
+    (dossier?.candidateId && dossier.candidateId === currentUser.memberId)
+  ) : false;
+
+  const canUpload = canApprove() || isOwnDossier;
 
   if (!dossier) {
     return (
@@ -126,16 +130,20 @@ export const AdmissionDossierDetail: React.FC<{ dossierId: string; onBack: () =>
                     )}
                   </td>
                   <td className="p-2.5 text-center">
-                    <label className="cursor-pointer bg-slate-200 hover:bg-red-800 hover:text-white text-gray-800 font-bold px-2.5 py-1 rounded transition inline-flex items-center space-x-1">
-                      <Upload className="w-3.5 h-3.5" />
-                      <span>Upload</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.doc,.docx,.png,.jpg"
-                        onChange={(e) => handleFileUploadItem(groupKey, item.id, e)}
-                        className="hidden"
-                      />
-                    </label>
+                    {canUpload ? (
+                      <label className="cursor-pointer bg-slate-200 hover:bg-red-800 hover:text-white text-gray-800 font-bold px-2.5 py-1 rounded transition inline-flex items-center space-x-1">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.png,.jpg"
+                          onChange={(e) => handleFileUploadItem(groupKey, item.id, e)}
+                          className="hidden"
+                        />
+                      </label>
+                    ) : (
+                      <span className="text-gray-400 text-[11px] italic">Khóa upload</span>
+                    )}
                   </td>
                   {canApprove() && (
                   <td className="p-2.5 text-center">

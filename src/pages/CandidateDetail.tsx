@@ -5,9 +5,31 @@ import { useAuth } from '../context/AuthContext';
 import { ArrowLeft, UserCheck, MessageSquare, Plus, CheckCircle, Shield } from 'lucide-react';
 
 export const CandidateDetail: React.FC<{ candidateId: string; onBack: () => void }> = ({ candidateId, onBack }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, canApprove } = useAuth();
   const candidates = DataRepository.getDevelopmentCandidates();
   const cand = candidates.find((c) => c.id === candidateId) || candidates[0];
+
+  const canEditCandidate = (): boolean => {
+    if (canApprove()) return true;
+    if (!currentUser || currentUser.role === 'GUEST') return false;
+
+    const userEmail = currentUser.email?.toLowerCase();
+    const userName = currentUser.fullName?.toUpperCase();
+    const userStaffCode = currentUser.staffCode;
+
+    const m1 = cand?.mentor1;
+    const m2 = cand?.mentor2;
+
+    const isMentor1 = (m1?.email && m1.email.toLowerCase() === userEmail) ||
+                      (m1?.fullName && m1.fullName.toUpperCase() === userName) ||
+                      (m1?.email && userStaffCode && m1.email.includes(userStaffCode));
+
+    const isMentor2 = (m2?.email && m2.email.toLowerCase() === userEmail) ||
+                      (m2?.fullName && m2.fullName.toUpperCase() === userName) ||
+                      (m2?.email && userStaffCode && m2.email.includes(userStaffCode));
+
+    return Boolean(isMentor1 || isMentor2);
+  };
 
   const [reviewQuarter, setReviewQuarter] = useState('Quý III/2026');
   const [reviewContent, setReviewContent] = useState('');
@@ -108,46 +130,53 @@ export const CandidateDetail: React.FC<{ candidateId: string; onBack: () => void
         {/* Right column: Mentor Reviews Feed */}
         <div className="space-y-6 lg:col-span-2">
           {/* Add review form */}
-          <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-xs space-y-3">
-            <h3 className="font-bold text-sm text-red-900 flex items-center space-x-2">
-              <MessageSquare className="w-4 h-4" />
-              <span>Ghi nhận ý kiến / Nhận xét định kỳ của Người hướng dẫn</span>
-            </h3>
+          {canEditCandidate() ? (
+            <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-xs space-y-3">
+              <h3 className="font-bold text-sm text-red-900 flex items-center space-x-2">
+                <MessageSquare className="w-4 h-4" />
+                <span>Ghi nhận ý kiến / Nhận xét định kỳ của Người hướng dẫn</span>
+              </h3>
 
-            <form onSubmit={handleAddReview} className="space-y-3">
-              <div className="flex items-center space-x-3">
-                <label className="text-xs font-bold text-gray-700">Đợt nhận xét:</label>
-                <select
-                  value={reviewQuarter}
-                  onChange={(e) => setReviewQuarter(e.target.value)}
-                  className="border rounded-lg px-2.5 py-1 text-xs bg-white font-bold"
-                >
-                  <option value="Quý III/2026">Quý III/2026</option>
-                  <option value="Quý IV/2026">Quý IV/2026</option>
-                  <option value="Quý I/2027">Quý I/2027</option>
-                </select>
-              </div>
+              <form onSubmit={handleAddReview} className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <label className="text-xs font-bold text-gray-700">Đợt nhận xét:</label>
+                  <select
+                    value={reviewQuarter}
+                    onChange={(e) => setReviewQuarter(e.target.value)}
+                    className="border rounded-lg px-2.5 py-1 text-xs bg-white font-bold"
+                  >
+                    <option value="Quý III/2026">Quý III/2026</option>
+                    <option value="Quý IV/2026">Quý IV/2026</option>
+                    <option value="Quý I/2027">Quý I/2027</option>
+                  </select>
+                </div>
 
-              <textarea
-                required
-                rows={3}
-                placeholder="Nhập nội dung nhận xét về sự phấn đấu, nhận thức chính trị, đạo đức lối sống và kết quả công tác..."
-                value={reviewContent}
-                onChange={(e) => setReviewContent(e.target.value)}
-                className="w-full border rounded-lg p-2.5 text-xs focus:ring-2 focus:ring-red-500 focus:outline-none"
-              />
+                <textarea
+                  required
+                  rows={3}
+                  placeholder="Nhập nội dung nhận xét về sự phấn đấu, nhận thức chính trị, đạo đức lối sống và kết quả công tác..."
+                  value={reviewContent}
+                  onChange={(e) => setReviewContent(e.target.value)}
+                  className="w-full border rounded-lg p-2.5 text-xs focus:ring-2 focus:ring-red-500 focus:outline-none"
+                />
 
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  className="bg-red-800 hover:bg-red-900 text-white font-bold text-xs px-4 py-2 rounded-lg shadow transition flex items-center space-x-1"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Lưu nhận xét</span>
-                </button>
-              </div>
-            </form>
-          </div>
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    className="bg-red-800 hover:bg-red-900 text-white font-bold text-xs px-4 py-2 rounded-lg shadow transition flex items-center space-x-1"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Lưu nhận xét</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : (
+            <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-xs text-amber-900 font-semibold flex items-center space-x-2">
+              <MessageSquare className="w-4 h-4 text-amber-700 shrink-0" />
+              <span>Chỉ Ban Chi ủy hoặc 02 Đảng viên hướng dẫn được phân công mới có quyền ghi nhận ý kiến nhận xét.</span>
+            </div>
+          )}
 
           {/* Timeline of reviews */}
           <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-xs space-y-4">
