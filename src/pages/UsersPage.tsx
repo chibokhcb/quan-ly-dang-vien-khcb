@@ -169,23 +169,18 @@ export const UsersPage: React.FC = () => {
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-900 space-y-2 shadow-2xs">
         <div className="flex items-center space-x-2 font-bold uppercase text-amber-950">
           <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
-          <span>Quy định Phân quyền & Phê duyệt Chi ủy:</span>
+          <span>Quy định Phân quyền Quản trị & Chi ủy Chi bộ:</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pl-6 pt-1">
-          <div className="bg-white/80 p-2.5 rounded-md border border-amber-200/80">
-            <p className="font-bold text-red-900">1. Quyền Quản trị Tất cả (Toàn quyền Bí thư):</p>
-            <ul className="list-disc pl-4 mt-1 space-y-0.5 text-gray-800">
+          <div className="bg-white/80 p-2.5 rounded-md border border-amber-200/80 col-span-2">
+            <p className="font-bold text-red-900">Ban Chi ủy & Email Quản trị (Toàn quyền Thêm, Sửa, Xóa):</p>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pl-4 mt-1 text-gray-800">
               <li>
                 <strong className="text-gray-900">Bí thư NGUYỄN THỊ THU TRÂM</strong> (<span className="font-mono">ntttram@ctump.edu.vn</span>)
               </li>
               <li>
                 <strong className="text-gray-900">Email hệ thống Chi bộ</strong> (<span className="font-mono">chibokhcb@ctump.edu.vn</span>)
               </li>
-            </ul>
-          </div>
-          <div className="bg-white/80 p-2.5 rounded-md border border-amber-200/80">
-            <p className="font-bold text-amber-900">2. Quyền Điều chỉnh cần Bí thư Phê duyệt:</p>
-            <ul className="list-disc pl-4 mt-1 space-y-0.5 text-gray-800">
               <li>
                 <strong className="text-gray-900">Phó Bí thư NGUYỄN THANH HÙNG</strong> (<span className="font-mono">nthung@ctump.edu.vn</span>)
               </li>
@@ -240,12 +235,9 @@ export const UsersPage: React.FC = () => {
                 </tr>
               ) : (
                 filteredUsers.map((u, idx) => {
-                  const isSuperAdminAll =
-                    u.email === 'ntttram@ctump.edu.vn' || u.email === 'chibokhcb@ctump.edu.vn';
-                  const isApprovalRequired =
-                    u.requiresSecretaryApproval ||
-                    u.email === 'nthung@ctump.edu.vn' ||
-                    u.email === 'letran@ctump.edu.vn';
+                  const adminList = ['ntttram@ctump.edu.vn', 'chibokhcb@ctump.edu.vn', 'nthung@ctump.edu.vn', 'letran@ctump.edu.vn'];
+                  const isSuperAdminAll = adminList.includes(u.email.toLowerCase());
+                  const isApprovalRequired = !isSuperAdminAll && u.requiresSecretaryApproval;
 
                   return (
                     <tr key={u.uid} className="hover:bg-gray-50 transition">

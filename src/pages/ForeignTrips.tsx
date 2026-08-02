@@ -36,6 +36,8 @@ export const ForeignTrips: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTripId, setEditingTripId] = useState<string | null>(null);
   const [selectedMemberId, setSelectedMemberId] = useState(members[0]?.id || '');
+  const [memberFullNameInput, setMemberFullNameInput] = useState('');
+  const [staffCodeInput, setStaffCodeInput] = useState('');
   const [purposes, setPurposes] = useState<TripPurpose[]>(['Đi công tác']);
   const [relatives, setRelatives] = useState<TripRelative[]>([]);
   const [startDate, setStartDate] = useState('01/10/2026');
@@ -79,7 +81,10 @@ export const ForeignTrips: React.FC = () => {
 
   const handleOpenAddModal = () => {
     setEditingTripId(null);
-    setSelectedMemberId(members[0]?.id || '');
+    const defaultMember = members.find(m => m.workEmail?.toLowerCase() === currentUser?.email.toLowerCase()) || members[0];
+    setSelectedMemberId(defaultMember?.id || '');
+    setMemberFullNameInput(defaultMember?.fullName || 'CHƯA RÕ HỌ TÊN');
+    setStaffCodeInput(defaultMember?.staffCode || '000000');
     setPurposes(['Đi công tác']);
     setRelatives([]);
     setStartDate('01/10/2026');
@@ -94,7 +99,9 @@ export const ForeignTrips: React.FC = () => {
 
   const handleOpenEditModal = (t: ForeignTrip) => {
     setEditingTripId(t.id);
-    setSelectedMemberId(t.memberId || members[0]?.id || '');
+    setSelectedMemberId(t.memberId || '');
+    setMemberFullNameInput(t.memberFullName || '');
+    setStaffCodeInput(t.staffCode || '');
     setPurposes(t.purposes || []);
     setRelatives(t.relativesAbroard || []);
     setStartDate(t.startDate);
@@ -109,15 +116,14 @@ export const ForeignTrips: React.FC = () => {
 
   const handleSaveTrip = (e: React.FormEvent) => {
     e.preventDefault();
-    const m = members.find((item) => item.id === selectedMemberId);
     const isAutoApprove = canApprove();
 
     DataRepository.saveForeignTrip(
       {
         id: editingTripId || undefined,
-        memberId: selectedMemberId,
-        memberFullName: m?.fullName || 'ĐẢNG VIÊN MẪU',
-        staffCode: m?.staffCode || '000000',
+        memberId: selectedMemberId || '',
+        memberFullName: memberFullNameInput.trim() || 'CHƯA RÕ HỌ TÊN',
+        staffCode: staffCodeInput.trim() || '000000',
         purposes,
         relativesAbroard: relatives,
         startDate,
@@ -431,18 +437,51 @@ export const ForeignTrips: React.FC = () => {
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingTripId ? "Sửa Thông Tin Chuyến Đi" : "Thêm Chuyến Đi Nước Ngoài Mới"}>
         <form onSubmit={handleSaveTrip} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Chọn Đảng viên *</label>
+            <label className="block text-xs font-bold text-gray-700 mb-1">Liên kết Hồ sơ Đảng viên</label>
             <select
               value={selectedMemberId}
-              onChange={(e) => setSelectedMemberId(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedMemberId(val);
+                const m = members.find((item) => item.id === val);
+                if (m) {
+                  setMemberFullNameInput(m.fullName);
+                  setStaffCodeInput(m.staffCode);
+                }
+              }}
               className="w-full border border-gray-300 rounded-lg p-2 text-xs bg-white font-bold"
             >
+              <option value="">-- Chọn danh sách hoặc giữ họ tên hiện tại --</option>
               {members.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.fullName} ({m.staffCode})
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Họ và tên Đảng viên *</label>
+              <input
+                type="text"
+                required
+                value={memberFullNameInput}
+                onChange={(e) => setMemberFullNameInput(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg p-2 text-xs font-bold uppercase text-red-950 bg-white"
+                placeholder="Nhập họ và tên..."
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Mã số cán bộ (MSCB)</label>
+              <input
+                type="text"
+                value={staffCodeInput}
+                onChange={(e) => setStaffCodeInput(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg p-2 text-xs font-mono font-bold bg-white"
+                placeholder="Nhập MSCB..."
+              />
+            </div>
           </div>
 
           <div>

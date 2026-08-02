@@ -53,18 +53,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (match) {
       // User is in registered list -> Assign exact configured permissions
-      loggedUser = match;
-      DataRepository.addAuditLog(cleanEmail, 'LOGIN_SUCCESS', 'AUTH', match.uid, `Đăng nhập thành công với vai trò ${match.role} (${match.positionTitle || 'Đảng viên'})`);
+      loggedUser = adminEmails.includes(cleanEmail)
+        ? { ...match, role: 'SUPER_ADMIN', requiresSecretaryApproval: false }
+        : match;
+      DataRepository.addAuditLog(cleanEmail, 'LOGIN_SUCCESS', 'AUTH', loggedUser.uid, `Đăng nhập thành công với vai trò ${loggedUser.role} (${loggedUser.positionTitle || 'Đảng viên'})`);
     } else if (cleanEmail.endsWith('@ctump.edu.vn') || cleanEmail.endsWith('@student.ctump.edu.vn')) {
       // Email ends with @ctump.edu.vn or @student.ctump.edu.vn -> Log in as Party Member
       const isStudent = cleanEmail.endsWith('@student.ctump.edu.vn');
       const prefix = cleanEmail.split('@')[0];
+      const isAdmin = adminEmails.includes(cleanEmail);
       loggedUser = {
         uid: `uid-pm-${Date.now()}`,
         email: cleanEmail,
         fullName: fullNameInput ? fullNameInput.trim().toUpperCase() : prefix.toUpperCase(),
-        role: 'PARTY_MEMBER',
-        positionTitle: isStudent ? 'Đảng viên / Sinh viên' : 'Đảng viên Chi bộ',
+        role: isAdmin ? 'SUPER_ADMIN' : 'PARTY_MEMBER',
+        positionTitle: isStudent ? 'Đảng viên / Sinh viên' : 'Chi ủy viên / Quản trị viên',
         staffCode: isStudent ? prefix : `001${Math.floor(100 + Math.random() * 900)}`,
         status: 'ACTIVE',
         requiresSecretaryApproval: false,
@@ -158,24 +161,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentUser(null);
   };
 
-  const isGuest = currentUser?.role === 'GUEST';
-  const isFullSecretary = currentUser?.email === 'ntttram@ctump.edu.vn' || currentUser?.email === 'chibokhcb@ctump.edu.vn';
-  const requiresSecretaryApproval = currentUser?.requiresSecretaryApproval === true;
-
   const adminEmails = ['ntttram@ctump.edu.vn', 'chibokhcb@ctump.edu.vn', 'letran@ctump.edu.vn', 'nthung@ctump.edu.vn'];
-  const canAddUser = currentUser ? (adminEmails.includes(currentUser.email.toLowerCase()) || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ORGANIZATION_ADMIN') : false;
+  const isAdminUser = currentUser ? adminEmails.includes(currentUser.email.toLowerCase()) : false;
+  const isGuest = currentUser?.role === 'GUEST';
+  const isFullSecretary = isAdminUser || currentUser?.role === 'SUPER_ADMIN';
+  const requiresSecretaryApproval = currentUser?.requiresSecretaryApproval === true && !isAdminUser;
+
+  const canAddUser = currentUser ? (isAdminUser || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ORGANIZATION_ADMIN') : false;
 
   const hasRole = (allowedRoles: UserRole[]): boolean => {
     if (!currentUser) return false;
     if (currentUser.role === 'GUEST') return false; // Guests have no write/admin roles
-    if (currentUser.role === 'SUPER_ADMIN') return true; // Super Admin has full access
+    if (isAdminUser || currentUser.role === 'SUPER_ADMIN') return true; // Super Admin / Chi uy has full access
     return allowedRoles.includes(currentUser.role);
   };
 
   const canEditMember = (memberUid?: string, memberEmail?: string, memberStaffCode?: string): boolean => {
     if (!currentUser || currentUser.role === 'GUEST') return false;
     // Admins (Secretary, Vice Secretary, Committee member, Super Admin, Org Admin) can edit all members
-    if (isFullSecretary || requiresSecretaryApproval || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ORGANIZATION_ADMIN') {
+    if (isAdminUser || isFullSecretary || requiresSecretaryApproval || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ORGANIZATION_ADMIN') {
       return true;
     }
     // Regular Party Member can ONLY edit/update their OWN profile/information
@@ -190,7 +194,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const canApprove = (): boolean => {
     if (!currentUser || currentUser.role === 'GUEST') return false;
-    return currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ORGANIZATION_ADMIN';
+    return isAdminUser || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ORGANIZATION_ADMIN';
   };
 
   return (

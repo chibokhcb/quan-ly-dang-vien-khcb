@@ -452,7 +452,7 @@ export const INITIAL_FOREIGN_TRIPS: ForeignTrip[] = [
   {
     id: 'ft-002',
     memberId: 'pm-001',
-    memberFullName: 'ĐẢNG VIÊN MẪU 01',
+    memberFullName: 'NGUYỄN THỊ THU TRÂM',
     staffCode: '001001',
     purposes: ['Đi công tác'],
     relativesAbroard: [],
@@ -473,7 +473,7 @@ export const INITIAL_FOREIGN_TRIPS: ForeignTrip[] = [
   {
     id: 'ft-003',
     memberId: 'pm-003',
-    memberFullName: 'ĐẢNG VIÊN MẪU 03',
+    memberFullName: 'TRẦN THỊ HỒNG LÊ',
     staffCode: '001003',
     purposes: ['Công việc riêng'],
     relativesAbroard: ['Cha', 'Mẹ'],
@@ -1061,8 +1061,8 @@ export const INITIAL_USER_ACCOUNTS: UserAccount[] = [
     positionTitle: 'Phó Bí thư Chi bộ',
     staffCode: '001002',
     status: 'ACTIVE',
-    requiresSecretaryApproval: true,
-    approvalNotes: 'Được điều chỉnh hệ thống nhưng hiển thị trạng thái "Cần Bí thư phê duyệt"',
+    requiresSecretaryApproval: false,
+    approvalNotes: 'Quản trị viên Chi ủy (Toàn quyền Thêm, Sửa, Xóa)',
     createdAt: '2026-01-01T00:00:00Z',
   },
   {
@@ -1073,8 +1073,8 @@ export const INITIAL_USER_ACCOUNTS: UserAccount[] = [
     positionTitle: 'Chi ủy viên',
     staffCode: '001003',
     status: 'ACTIVE',
-    requiresSecretaryApproval: true,
-    approvalNotes: 'Được điều chỉnh hệ thống nhưng hiển thị trạng thái "Cần Bí thư phê duyệt"',
+    requiresSecretaryApproval: false,
+    approvalNotes: 'Quản trị viên Chi ủy (Toàn quyền Thêm, Sửa, Xóa)',
     createdAt: '2026-01-01T00:00:00Z',
   },
   // Danh sách Đảng viên Chi bộ Khoa học cơ bản (25 Đảng viên)
