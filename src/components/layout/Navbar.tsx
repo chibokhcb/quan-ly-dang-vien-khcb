@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { PartyLogo } from '../common/PartyLogo';
-import { Bell, LogOut, User, Shield, Eye } from 'lucide-react';
+import { Bell, LogOut, User, Shield, Eye, QrCode } from 'lucide-react';
+import { GoogleAuthenticatorModal } from '../auth/GoogleAuthenticatorModal';
 
 export const Navbar: React.FC = () => {
   const { currentUser, isGuest, signOut } = useAuth();
+  const [show2FaModal, setShow2FaModal] = useState(false);
 
   return (
     <header className="bg-gradient-to-r from-[#800000] via-[#8B1D1D] to-[#700000] text-white shadow-md border-b-2 border-[#FFD700] sticky top-0 z-40">
@@ -39,6 +41,18 @@ export const Navbar: React.FC = () => {
               <Shield className="w-3.5 h-3.5 text-[#800000] shrink-0" />
               <span className="uppercase">{currentUser?.positionTitle || currentUser?.role || 'ĐÃ XÁC THỰC'}</span>
             </div>
+          )}
+
+          {/* 2FA Google Authenticator quick button */}
+          {!isGuest && currentUser && (
+            <button
+              onClick={() => setShow2FaModal(true)}
+              className="px-2.5 py-1.5 bg-black/20 hover:bg-black/40 text-amber-200 border border-amber-400/30 rounded-lg text-xs font-bold transition flex items-center space-x-1 cursor-pointer"
+              title="Cài đặt Google Authenticator 2FA"
+            >
+              <QrCode className="w-3.5 h-3.5 text-[#FFD700]" />
+              <span className="hidden md:inline">Google Auth 2FA</span>
+            </button>
           )}
 
           {/* Notifications button */}
@@ -79,6 +93,21 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 2FA Modal */}
+      {show2FaModal && currentUser && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 text-gray-900">
+          <GoogleAuthenticatorModal
+            userEmail={currentUser.email}
+            isSetupMode={true}
+            onVerifySuccess={() => {
+              alert('Đã xác thực thành công Google Authenticator cho tài khoản ' + currentUser.email);
+              setShow2FaModal(false);
+            }}
+            onClose={() => setShow2FaModal(false)}
+          />
+        </div>
+      )}
     </header>
   );
 };

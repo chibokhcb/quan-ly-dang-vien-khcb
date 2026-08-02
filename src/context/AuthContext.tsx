@@ -49,31 +49,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const allUsers = DataRepository.getUsers();
     const match = allUsers.find((u) => u.email.trim().toLowerCase() === cleanEmail);
 
+    let loggedUser: UserAccount;
+
     if (match) {
       // User is in registered list -> Assign exact configured permissions
-      setCurrentUser(match);
+      loggedUser = match;
       DataRepository.addAuditLog(cleanEmail, 'LOGIN_SUCCESS', 'AUTH', match.uid, `Đăng nhập thành công với vai trò ${match.role} (${match.positionTitle || 'Đảng viên'})`);
-      return match;
     } else if (cleanEmail.endsWith('@ctump.edu.vn') || cleanEmail.endsWith('@student.ctump.edu.vn')) {
       // Email ends with @ctump.edu.vn or @student.ctump.edu.vn -> Log in as Party Member
       const isStudent = cleanEmail.endsWith('@student.ctump.edu.vn');
-      const newPartyMemberUser: UserAccount = {
+      const prefix = cleanEmail.split('@')[0];
+      loggedUser = {
         uid: `uid-pm-${Date.now()}`,
         email: cleanEmail,
-        fullName: fullNameInput ? fullNameInput.trim().toUpperCase() : cleanEmail.split('@')[0].toUpperCase(),
+        fullName: fullNameInput ? fullNameInput.trim().toUpperCase() : prefix.toUpperCase(),
         role: 'PARTY_MEMBER',
         positionTitle: isStudent ? 'Đảng viên / Sinh viên' : 'Đảng viên Chi bộ',
+        staffCode: isStudent ? prefix : `001${Math.floor(100 + Math.random() * 900)}`,
         status: 'ACTIVE',
         requiresSecretaryApproval: false,
         createdAt: new Date().toISOString(),
       };
-      DataRepository.saveUserAccount(newPartyMemberUser);
-      setCurrentUser(newPartyMemberUser);
-      DataRepository.addAuditLog(cleanEmail, 'LOGIN_AUTO_MEMBER', 'AUTH', newPartyMemberUser.uid, `Tự động tạo tài khoản Đảng viên mới qua email ${cleanEmail}`);
-      return newPartyMemberUser;
+      DataRepository.saveUserAccount(loggedUser);
+      DataRepository.addAuditLog(cleanEmail, 'LOGIN_AUTO_MEMBER', 'AUTH', loggedUser.uid, `Tự động tạo tài khoản Đảng viên mới qua email ${cleanEmail}`);
     } else {
       // User email NOT in CTUMP domain -> Log in as GUEST (Read-only view)
-      const guestUser: UserAccount = {
+      loggedUser = {
         uid: `guest-${Date.now()}`,
         email: cleanEmail,
         fullName: fullNameInput ? fullNameInput.trim().toUpperCase() : cleanEmail.split('@')[0].toUpperCase(),
@@ -82,10 +83,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         status: 'ACTIVE',
         createdAt: new Date().toISOString(),
       };
-      setCurrentUser(guestUser);
-      DataRepository.addAuditLog(cleanEmail, 'LOGIN_GUEST', 'AUTH', guestUser.uid, 'Đăng nhập ở chế độ Khách (Chỉ xem) do email nằm ngoài tên miền @ctump.edu.vn / @student.ctump.edu.vn');
-      return guestUser;
+      DataRepository.addAuditLog(cleanEmail, 'LOGIN_GUEST', 'AUTH', loggedUser.uid, 'Đăng nhập ở chế độ Khách (Chỉ xem) do email nằm ngoài tên miền @ctump.edu.vn / @student.ctump.edu.vn');
     }
+
+    // Synchronize PartyMember record so "Thông tin của tôi" and "Hồ sơ đảng viên" have exact match
+    if (loggedUser.role !== 'GUEST') {
+      const partyMembers = DataRepository.getPartyMembers();
+      const existing = partyMembers.find(
+        (m) => m.workEmail?.toLowerCase() === cleanEmail || (loggedUser.staffCode && m.staffCode === loggedUser.staffCode)
+      );
+
+      if (!existing) {
+        DataRepository.savePartyMember({
+          id: `pm-${loggedUser.uid}`,
+          stt: partyMembers.length + 1,
+          fullName: loggedUser.fullName,
+          gender: 'Nam',
+          dateOfBirth: '15/05/1985',
+          ethnicityName: 'Kinh',
+          religionName: 'Không',
+          personalId: '089085' + String(Math.floor(100000 + Math.random() * 900000)),
+          partyCardNumber: '370123' + String(Math.floor(100000 + Math.random() * 900000)),
+          partyOrganization: 'Chi bộ Khoa học cơ bản',
+          birthRegistration: { country: 'Việt Nam', province: 'Cần Thơ', detail: 'Quận Ninh Kiều' },
+          hometown: { country: 'Việt Nam', province: 'Cần Thơ', detail: 'Quận Ninh Kiều' },
+          permanentResidence: { country: 'Việt Nam', province: 'Cần Thơ', detail: 'Phường An Khánh' },
+          partyAdmissionDate: '19/05/2015',
+          officialPartyDate: '19/05/2016',
+          activityStatus: 'Đang sinh hoạt Đảng',
+          staffCode: loggedUser.staffCode || '000000',
+          workEmail: cleanEmail,
+          department: 'Chi bộ Khoa học cơ bản',
+          academicTitle: loggedUser.positionTitle || 'Đảng viên Chi bộ',
+          jobTitle: loggedUser.positionTitle || 'Đảng viên',
+          userUid: loggedUser.uid,
+        }, cleanEmail);
+      }
+    }
+
+    setCurrentUser(loggedUser);
+    return loggedUser;
   };
 
   const isDeviceRemembered = (email: string): boolean => {
@@ -135,7 +172,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return allowedRoles.includes(currentUser.role);
   };
 
-  const canEditMember = (memberUid?: string, memberEmail?: string): boolean => {
+  const canEditMember = (memberUid?: string, memberEmail?: string, memberStaffCode?: string): boolean => {
     if (!currentUser || currentUser.role === 'GUEST') return false;
     // Admins (Secretary, Vice Secretary, Committee member, Super Admin, Org Admin) can edit all members
     if (isFullSecretary || requiresSecretaryApproval || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ORGANIZATION_ADMIN') {
@@ -145,6 +182,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (currentUser.role === 'PARTY_MEMBER') {
       if (memberUid && currentUser.uid === memberUid) return true;
       if (memberEmail && currentUser.email.toLowerCase() === memberEmail.toLowerCase()) return true;
+      if (memberStaffCode && currentUser.staffCode === memberStaffCode) return true;
       return false;
     }
     return false;

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { DataRepository } from '../services/repository';
 import { PartyMember, ActivityStatus } from '../types';
 import { MaskedText } from '../components/common/MaskedText';
@@ -23,16 +23,29 @@ import {
   UserMinus,
   RefreshCw,
   Info,
+  X,
 } from 'lucide-react';
 
 export const Members: React.FC<{ onNavigate: (path: string) => void }> = ({ onNavigate }) => {
-  const { currentUser, canApprove } = useAuth();
+  const { currentUser, isFullSecretary, requiresSecretaryApproval, canEditMember, canApprove } = useAuth();
   const [members, setMembers] = useState<PartyMember[]>(() => DataRepository.getPartyMembers());
 
   // Search & Filter state
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [provinceFilter, setProvinceFilter] = useState<string>('ALL');
+
+  // Debounce search query updates (300ms)
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchInput);
+    }, 300);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchInput]);
 
   // Import Wizard Modal state
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -69,10 +82,14 @@ export const Members: React.FC<{ onNavigate: (path: string) => void }> = ({ onNa
   const filteredMembers = useMemo(() => {
     return members.filter((m) => {
       const matchSearch =
-        searchMatch(m.fullName, searchQuery) ||
-        searchMatch(m.personalId, searchQuery) ||
-        searchMatch(m.partyCardNumber, searchQuery) ||
-        searchMatch(m.staffCode, searchQuery);
+        searchMatch(m.fullName, debouncedSearchQuery) ||
+        searchMatch(m.normalizedName || '', debouncedSearchQuery) ||
+        searchMatch(m.staffCode, debouncedSearchQuery) ||
+        searchMatch(m.activityStatus, debouncedSearchQuery) ||
+        searchMatch(m.personalId, debouncedSearchQuery) ||
+        searchMatch(m.partyCardNumber, debouncedSearchQuery) ||
+        searchMatch(m.department || '', debouncedSearchQuery) ||
+        searchMatch(m.jobTitle || '', debouncedSearchQuery);
 
       const matchStatus = statusFilter === 'ALL' || m.activityStatus === statusFilter;
       const matchProvince =
@@ -82,7 +99,7 @@ export const Members: React.FC<{ onNavigate: (path: string) => void }> = ({ onNa
 
       return matchSearch && matchStatus && matchProvince;
     });
-  }, [members, searchQuery, statusFilter, provinceFilter]);
+  }, [members, debouncedSearchQuery, statusFilter, provinceFilter]);
 
   // Export handlers
   const handleExportOriginal = async () => {
@@ -218,40 +235,44 @@ export const Members: React.FC<{ onNavigate: (path: string) => void }> = ({ onNa
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => {
-              setSelectedMember({
-                fullName: '',
-                gender: 'Nam',
-                dateOfBirth: '15/05/1990',
-                ethnicityName: 'Kinh',
-                religionName: 'Không',
-                personalId: '089090000000',
-                partyCardNumber: '370123450000',
-                partyOrganization: 'Chi bộ Khoa học cơ bản',
-                birthRegistration: { country: 'Việt Nam', province: 'Cần Thơ', detail: '' },
-                hometown: { country: 'Việt Nam', province: 'Cần Thơ', detail: '' },
-                permanentResidence: { country: 'Việt Nam', province: 'Cần Thơ', detail: '' },
-                partyAdmissionDate: '19/05/2015',
-                officialPartyDate: '19/05/2016',
-                activityStatus: 'Đang sinh hoạt Đảng',
-                staffCode: '001099',
-              });
-              setIsEditModalOpen(true);
-            }}
-            className="bg-red-800 hover:bg-red-900 text-white text-xs font-bold px-3 py-2 rounded-lg shadow transition flex items-center space-x-1.5"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Thêm mới</span>
-          </button>
+          {(isFullSecretary || requiresSecretaryApproval) && (
+            <>
+              <button
+                onClick={() => {
+                  setSelectedMember({
+                    fullName: '',
+                    gender: 'Nam',
+                    dateOfBirth: '15/05/1990',
+                    ethnicityName: 'Kinh',
+                    religionName: 'Không',
+                    personalId: '089090000000',
+                    partyCardNumber: '370123450000',
+                    partyOrganization: 'Chi bộ Khoa học cơ bản',
+                    birthRegistration: { country: 'Việt Nam', province: 'Cần Thơ', detail: '' },
+                    hometown: { country: 'Việt Nam', province: 'Cần Thơ', detail: '' },
+                    permanentResidence: { country: 'Việt Nam', province: 'Cần Thơ', detail: '' },
+                    partyAdmissionDate: '19/05/2015',
+                    officialPartyDate: '19/05/2016',
+                    activityStatus: 'Đang sinh hoạt Đảng',
+                    staffCode: `001${Math.floor(100 + Math.random() * 900)}`,
+                  });
+                  setIsEditModalOpen(true);
+                }}
+                className="bg-red-800 hover:bg-red-900 text-white text-xs font-bold px-3 py-2 rounded-lg shadow transition flex items-center space-x-1.5"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Thêm mới</span>
+              </button>
 
-          <button
-            onClick={() => setIsImportModalOpen(true)}
-            className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-3 py-2 rounded-lg shadow transition flex items-center space-x-1.5"
-          >
-            <Upload className="w-4 h-4" />
-            <span>Nhập Excel</span>
-          </button>
+              <button
+                onClick={() => setIsImportModalOpen(true)}
+                className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-3 py-2 rounded-lg shadow transition flex items-center space-x-1.5"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Nhập Excel</span>
+              </button>
+            </>
+          )}
 
           <button
             onClick={handleExportOriginal}
@@ -269,11 +290,20 @@ export const Members: React.FC<{ onNavigate: (path: string) => void }> = ({ onNa
           <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
           <input
             type="text"
-            placeholder="Tìm theo Tên (không dấu), CCCD, Thẻ Đảng, MSCB..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-red-500 focus:outline-none"
+            placeholder="Tìm theo Tên, MSCB, Trạng thái, CCCD, Thẻ Đảng..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-red-500 focus:outline-none transition shadow-2xs"
           />
+          {searchInput && (
+            <button
+              onClick={() => setSearchInput('')}
+              className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600 transition cursor-pointer"
+              title="Xóa ô tìm kiếm"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         <div className="flex items-center space-x-3 w-full md:w-auto text-xs">
@@ -355,33 +385,35 @@ export const Members: React.FC<{ onNavigate: (path: string) => void }> = ({ onNa
                       >
                         <Eye className="w-4 h-4" />
                       </button>
-                      {canApprove() && (
-                        <>
-                          <button
-                            onClick={() => handleOpenRename(m)}
-                            className="p-1.5 text-indigo-700 hover:bg-indigo-100 rounded-lg transition"
-                            title="Điều tên / Đổi tên Đảng viên"
-                          >
-                            <Type className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedMember(m);
-                              setIsEditModalOpen(true);
-                            }}
-                            className="p-1.5 text-amber-700 hover:bg-amber-100 rounded-lg transition"
-                            title="Chỉnh sửa toàn bộ hồ sơ"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleOpenDelete(m)}
-                            className="p-1.5 text-red-700 hover:bg-red-100 rounded-lg transition"
-                            title="Xóa / Chuyển sinh hoạt Đảng viên"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </>
+                      {(isFullSecretary || requiresSecretaryApproval) && (
+                        <button
+                          onClick={() => handleOpenRename(m)}
+                          className="p-1.5 text-indigo-700 hover:bg-indigo-100 rounded-lg transition"
+                          title="Điều tên / Đổi tên Đảng viên"
+                        >
+                          <Type className="w-4 h-4" />
+                        </button>
+                      )}
+                      {canEditMember(m.userUid, m.workEmail, m.staffCode) && (
+                        <button
+                          onClick={() => {
+                            setSelectedMember(m);
+                            setIsEditModalOpen(true);
+                          }}
+                          className="p-1.5 text-amber-700 hover:bg-amber-100 rounded-lg transition"
+                          title={isFullSecretary ? "Chỉnh sửa toàn bộ hồ sơ" : "Đề nghị cập nhật hồ sơ cá nhân"}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      )}
+                      {(isFullSecretary || requiresSecretaryApproval) && (
+                        <button
+                          onClick={() => handleOpenDelete(m)}
+                          className="p-1.5 text-red-700 hover:bg-red-100 rounded-lg transition"
+                          title="Xóa / Chuyển sinh hoạt Đảng viên"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       )}
                     </div>
                   </td>

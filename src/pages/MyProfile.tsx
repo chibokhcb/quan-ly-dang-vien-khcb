@@ -8,8 +8,45 @@ import { User, Edit3, Send, CheckCircle } from 'lucide-react';
 export const MyProfile: React.FC = () => {
   const { currentUser } = useAuth();
   const members = DataRepository.getPartyMembers();
-  // Find party member matching current user email or memberId
-  const member = members.find((m) => m.workEmail === currentUser?.email || m.id === currentUser?.memberId) || members[2];
+  const member =
+    members.find(
+      (m) =>
+        (m.workEmail && m.workEmail.trim().toLowerCase() === currentUser?.email.trim().toLowerCase()) ||
+        (currentUser?.staffCode && m.staffCode === currentUser.staffCode) ||
+        (m.userUid && m.userUid === currentUser?.uid) ||
+        (currentUser?.memberId && m.id === currentUser.memberId)
+    ) || {
+      id: `pm-me-${currentUser?.uid || 'user'}`,
+      stt: 1,
+      fullName: currentUser?.fullName || 'ĐẢNG VIÊN CHI BỘ',
+      normalizedName: currentUser?.fullName || 'DANG VIEN CHI BO',
+      gender: 'Nam',
+      dateOfBirth: '15/05/1985',
+      ethnicityId: '1',
+      ethnicityName: 'Kinh',
+      religionId: '1',
+      religionName: 'Không',
+      personalId: '089085000000',
+      partyCardNumber: '370123000000',
+      partyOrganization: 'Chi bộ Khoa học cơ bản',
+      birthRegistration: { country: 'Việt Nam', province: 'Cần Thơ', detail: 'Ninh Kiều' },
+      hometown: { country: 'Việt Nam', province: 'Cần Thơ', detail: 'Ninh Kiều' },
+      permanentResidence: { country: 'Việt Nam', province: 'Cần Thơ', detail: 'An Khánh' },
+      partyAdmissionDate: '19/05/2015',
+      officialPartyDate: '19/05/2016',
+      activityStatus: 'Đang sinh hoạt Đảng' as const,
+      deleteRequested: false,
+      validationResult: 'HỢP LỆ' as const,
+      validationDetails: 'Hồ sơ cá nhân chính thức',
+      staffCode: currentUser?.staffCode || '000000',
+      workEmail: currentUser?.email || 'user@ctump.edu.vn',
+      phone: '',
+      department: 'Chi bộ Khoa học cơ bản',
+      academicTitle: currentUser?.positionTitle || 'Đảng viên Chi bộ',
+      jobTitle: currentUser?.positionTitle || 'Đảng viên',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
 
   const [isEditing, setIsEditing] = useState(false);
   const [requestedPhone, setRequestedPhone] = useState(member.phone || '');

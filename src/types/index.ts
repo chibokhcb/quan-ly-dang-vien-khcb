@@ -409,6 +409,11 @@ export interface UserAccount {
   approvalNotes?: string;
   createdAt: string;
   lastLoginAt?: string;
+
+  // Google Authenticator 2FA TOTP
+  isTwoFactorEnabled?: boolean;
+  totpSecretKey?: string;
+  totpQrCodeDataUrl?: string;
 }
 
 export interface AuditLog {
