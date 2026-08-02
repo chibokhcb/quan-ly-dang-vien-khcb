@@ -1,0 +1,6 @@
+{
+  "name": "QUẢN LÝ ĐẢNG VIÊN KHCB",
+  "description": "Hệ thống theo dõi và quản lý đảng viên – Chi bộ Khoa học cơ bản",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

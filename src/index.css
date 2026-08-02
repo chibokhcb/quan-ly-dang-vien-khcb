@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: #F5F2ED;
+    color: #2D2D2D;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+}
+
+/* Natural Tones Design Theme Custom Utilities */
+.bg-natural-canvas {
+  background-color: #F5F2ED;
+}
+
+.bg-natural-sidebar {
+  background-color: #1E1E1B;
+}
+
+.bg-natural-card {
+  background-color: #FFFFFF;
+  border-color: #E5E1DA;
+}
+
+.border-natural {
+  border-color: #E5E1DA;
+}
+
+.text-natural-dark {
+  color: #2D2D2D;
+}
+
+.text-natural-muted {
+  color: #7A7670;
+}
+
+.text-natural-red {
+  color: #8B1D1D;
+}
+
+.bg-natural-red {
+  background-color: #8B1D1D;
+}
+
+.bg-natural-red-hover:hover {
+  background-color: #711717;
+}
+
+.bg-natural-gold {
+  background-color: #FFD700;
+}
+
+.text-natural-gold {
+  color: #FFD700;
+}
