@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DataRepository } from '../services/repository';
 import { MaskedText } from '../components/common/MaskedText';
 import { StatusBadge } from '../components/common/StatusBadge';
@@ -25,10 +25,69 @@ import {
   UserMinus,
 } from 'lucide-react';
 
-export const MemberDetail: React.FC<{ memberId: string; onBack: () => void }> = ({ memberId, onBack }) => {
-  const { currentUser, canApprove, canDelete } = useAuth();
+export const MemberDetail: React.FC<{ memberId: string; onBack: () => void; onNavigate?: (path: string) => void }> = ({ memberId, onBack, onNavigate }) => {
+  const { currentUser, canApprove, canDelete, canEditMember, isFullSecretary } = useAuth();
   const [member, setMember] = useState(() => DataRepository.getPartyMemberById(memberId));
   const [activeTab, setActiveTab] = useState<number>(1);
+
+  const canEdit = member ? canEditMember(member.userUid, member.workEmail, member.staffCode) : false;
+  const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
+  const [formData, setFormData] = useState<typeof member>(member);
+  const [newAttName, setNewAttName] = useState('');
+  const [newAttUrl, setNewAttUrl] = useState('');
+
+  useEffect(() => {
+    setFormData(member);
+  }, [member]);
+
+  const handleOpenProfileEdit = () => {
+    setFormData(member);
+    setIsProfileEditOpen(true);
+  };
+
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData) return;
+    if (canApprove()) {
+      DataRepository.savePartyMember(formData, currentUser?.email || 'admin');
+      refreshMember();
+      setIsProfileEditOpen(false);
+    } else {
+      const changeReq = {
+        id: `cr-${Date.now()}`,
+        memberId: formData.id,
+        memberFullName: formData.fullName,
+        requestedByUid: currentUser?.uid || '',
+        requestedByEmail: currentUser?.email || '',
+        requestedAt: new Date().toISOString(),
+        beforeData: member || {},
+        requestedData: formData,
+        changedFields: ['Hồ sơ Đảng viên (cập nhật từ trang chi tiết)'],
+        reason: 'Đảng viên đề nghị cập nhật hồ sơ cá nhân từ trang Hồ sơ chi tiết',
+        status: 'PENDING' as const,
+      };
+      DataRepository.saveMemberChangeRequest(changeReq as any, currentUser?.email || 'user');
+      alert('Đã gửi yêu cầu cập nhật hồ sơ! Thay đổi sẽ có hiệu lực sau khi 1 trong 4 tài khoản Ban Chi ủy (chibokhcb, ntttram, nthung, letran) phê duyệt.');
+      setIsProfileEditOpen(false);
+    }
+  };
+
+  const handleAddAttachment = () => {
+    if (!newAttName.trim() || !formData) return;
+    setFormData({
+      ...formData,
+      attachments: [...(formData.attachments || []), { name: newAttName.trim(), url: newAttUrl.trim() || '#', size: 0 }],
+    });
+    setNewAttName('');
+    setNewAttUrl('');
+  };
+
+  const handleRemoveAttachment = (idx: number) => {
+    if (!formData) return;
+    const list = [...(formData.attachments || [])];
+    list.splice(idx, 1);
+    setFormData({ ...formData, attachments: list });
+  };
 
   // Rename Modal State
   const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
@@ -173,6 +232,18 @@ export const MemberDetail: React.FC<{ memberId: string; onBack: () => void }> = 
             </button>
           </div>
         )}
+
+        {canEdit && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleOpenProfileEdit}
+              className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-lg shadow transition flex items-center space-x-1.5"
+            >
+              <Type className="w-4 h-4" />
+              <span>{isFullSecretary ? 'Chỉnh sửa hồ sơ' : 'Đề nghị cập nhật hồ sơ của tôi'}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 11 Tabs Bar */}
@@ -309,12 +380,139 @@ export const MemberDetail: React.FC<{ memberId: string; onBack: () => void }> = 
             </div>
           )}
 
-          {activeTab >= 4 && (
-            <div className="p-8 text-center text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-              <p className="font-semibold text-gray-700">Thông tin tab {activeTab} khả dụng và sẵn sàng truy xuất.</p>
-              <p className="text-[11px] text-gray-500 mt-1">Dữ liệu được bảo mật và đồng bộ hóa từ Firestore.</p>
+          {activeTab === 4 && (
+            <div className="space-y-3">
+              <p className="text-gray-500 text-[11px] font-semibold">Quá trình học tập / công tác (tóm tắt)</p>
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 whitespace-pre-wrap font-semibold text-gray-900 min-h-[80px]">
+                {member.educationWorkHistory || 'Chưa có dữ liệu. Nhấn "Chỉnh sửa hồ sơ" để bổ sung.'}
+              </div>
             </div>
           )}
+
+          {activeTab === 5 && (
+            <div className="space-y-3">
+              <p className="text-gray-500 text-[11px] font-semibold">Lịch sử chính trị bản thân & Nhân thân (Cha, Mẹ, Vợ/Chồng, Con...)</p>
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 whitespace-pre-wrap font-semibold text-gray-900 min-h-[80px]">
+                {member.politicalHistoryFamily || 'Chưa có dữ liệu. Nhấn "Chỉnh sửa hồ sơ" để bổ sung.'}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 6 && (() => {
+            const trips = DataRepository.getForeignTrips().filter((t) => t.memberId === member.id);
+            return (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-gray-500 text-[11px] font-semibold">Danh sách các đợt đi nước ngoài đã khai báo</p>
+                  {onNavigate && (
+                    <button onClick={() => onNavigate('/foreign-trips')} className="text-[11px] font-bold text-blue-700 hover:underline">Quản lý tại trang Đi nước ngoài →</button>
+                  )}
+                </div>
+                {trips.length === 0 ? (
+                  <p className="text-gray-500 italic">Chưa có dữ liệu đi nước ngoài.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {trips.map((t) => (
+                      <div key={t.id} className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex items-center justify-between">
+                        <div>
+                          <p className="font-bold text-gray-900">{t.destinationCountry} {t.city ? `- ${t.city}` : ''}</p>
+                          <p className="text-[11px] text-gray-500">{t.startDate} → {t.endDate}</p>
+                        </div>
+                        <StatusBadge status={t.approvalStatus} type="approval" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {activeTab === 7 && (
+            <div className="p-6 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+              <p className="font-semibold text-gray-700">Hồ sơ Phát triển Đảng viên / Người hướng dẫn được quản lý tại trang "Phát triển Đảng".</p>
+              {onNavigate && (
+                <button onClick={() => onNavigate('/development')} className="text-[11px] font-bold text-blue-700 hover:underline">Đi tới trang Phát triển Đảng →</button>
+              )}
+            </div>
+          )}
+
+          {activeTab === 8 && (
+            <div className="p-6 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+              <p className="font-semibold text-gray-700">Hồ sơ kết nạp Đảng được quản lý tại trang "Hồ sơ kết nạp".</p>
+              {onNavigate && (
+                <button onClick={() => onNavigate('/admission-dossiers')} className="text-[11px] font-bold text-blue-700 hover:underline">Đi tới trang Hồ sơ kết nạp →</button>
+              )}
+            </div>
+          )}
+
+          {activeTab === 9 && (() => {
+            const offs = DataRepository.getOfficializationDossiers().filter((o) => o.memberId === member.id);
+            return (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-gray-500 text-[11px] font-semibold">Hồ sơ công nhận Đảng viên chính thức</p>
+                  {onNavigate && (
+                    <button onClick={() => onNavigate('/officialization-dossiers')} className="text-[11px] font-bold text-blue-700 hover:underline">Quản lý tại trang Công nhận chính thức →</button>
+                  )}
+                </div>
+                {offs.length === 0 ? (
+                  <p className="text-gray-500 italic">Chưa có dữ liệu.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {offs.map((o) => (
+                      <div key={o.id} className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <p className="font-bold text-gray-900">Ngày kết nạp dự bị: {o.provisionalAdmissionDate}</p>
+                        <p className="text-[11px] text-gray-500">Dự kiến chính thức: {o.expectedOfficialDate} • Hạn hồ sơ: {o.dossierDueDate}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {activeTab === 10 && (
+            <div className="space-y-3">
+              <p className="text-gray-500 text-[11px] font-semibold">Tệp đính kèm hồ sơ</p>
+              {(member.attachments || []).length === 0 ? (
+                <p className="text-gray-500 italic">Chưa có tệp đính kèm nào.</p>
+              ) : (
+                <div className="space-y-2">
+                  {(member.attachments || []).map((f, i) => (
+                    <a key={i} href={f.url} target="_blank" rel="noreferrer" className="flex items-center space-x-2 bg-slate-50 p-3 rounded-lg border border-slate-200 hover:bg-slate-100 transition">
+                      <FileText className="w-4 h-4 text-gray-500" />
+                      <span className="font-semibold text-blue-700 underline">{f.name}</span>
+                    </a>
+                  ))}
+                </div>
+              )}
+              {canEdit && (
+                <p className="text-[11px] text-gray-500 italic">Nhấn "Chỉnh sửa hồ sơ" để thêm/xóa tệp đính kèm.</p>
+              )}
+            </div>
+          )}
+
+          {activeTab === 11 && (() => {
+            const logs = DataRepository.getAuditLogs()
+              .filter((l) => l.targetId === member.id || l.resourceId === member.id)
+              .sort((a, b) => new Date(b.performedAt || b.timestamp || 0).getTime() - new Date(a.performedAt || a.timestamp || 0).getTime());
+            return (
+              <div className="space-y-2">
+                <p className="text-gray-500 text-[11px] font-semibold">Lịch sử thay đổi hồ sơ (Audit Log)</p>
+                {logs.length === 0 ? (
+                  <p className="text-gray-500 italic">Chưa có lịch sử thay đổi.</p>
+                ) : (
+                  logs.map((l) => (
+                    <div key={l.id} className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                      <p className="font-bold text-gray-900">{l.action}</p>
+                      <p className="text-[11px] text-gray-600">{l.details}</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">{l.performedByEmail || l.actorEmail} • {l.performedAt || l.timestamp}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -522,6 +720,108 @@ export const MemberDetail: React.FC<{ memberId: string; onBack: () => void }> = 
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal: Chỉnh sửa / Đề nghị cập nhật Hồ sơ Đảng viên (11 mục) */}
+      <Modal
+        isOpen={isProfileEditOpen}
+        onClose={() => { setFormData(member); setIsProfileEditOpen(false); }}
+        title={isFullSecretary ? 'Chỉnh sửa Hồ sơ Đảng viên' : 'Đề nghị cập nhật Hồ sơ của tôi'}
+      >
+        {formData && (
+          <form onSubmit={handleSaveProfile} className="space-y-5 text-xs max-h-[70vh] overflow-y-auto pr-1">
+            {!isFullSecretary && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-[11px] text-amber-900 flex items-start space-x-2">
+                <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                <span>Yêu cầu cập nhật của bạn sẽ cần 1 trong 4 tài khoản Ban Chi ủy phê duyệt trước khi có hiệu lực.</span>
+              </div>
+            )}
+
+            <div>
+              <h4 className="font-bold text-red-900 mb-2">1. Thông tin chung</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">Tên gọi khác</label>
+                  <input type="text" value={formData.otherName || ''} onChange={(e) => setFormData({ ...formData, otherName: e.target.value })} className="w-full border border-gray-300 rounded-lg p-2" />
+                </div>
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">Ngày sinh</label>
+                  <input type="text" value={formData.dateOfBirth || ''} onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })} className="w-full border border-gray-300 rounded-lg p-2" />
+                </div>
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">Dân tộc</label>
+                  <input type="text" value={formData.ethnicityName || ''} onChange={(e) => setFormData({ ...formData, ethnicityName: e.target.value })} className="w-full border border-gray-300 rounded-lg p-2" />
+                </div>
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">Tôn giáo</label>
+                  <input type="text" value={formData.religionName || ''} onChange={(e) => setFormData({ ...formData, religionName: e.target.value })} className="w-full border border-gray-300 rounded-lg p-2" />
+                </div>
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">Chức danh / Trình độ</label>
+                  <input type="text" value={formData.academicTitle || ''} onChange={(e) => setFormData({ ...formData, academicTitle: e.target.value })} className="w-full border border-gray-300 rounded-lg p-2" />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-red-900 mb-2">2. Thông tin Đảng</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">Nơi cấp thẻ Đảng</label>
+                  <input type="text" value={formData.partyCardIssuer || ''} onChange={(e) => setFormData({ ...formData, partyCardIssuer: e.target.value })} className="w-full border border-gray-300 rounded-lg p-2" />
+                </div>
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">Ngày cấp thẻ Đảng</label>
+                  <input type="text" value={formData.partyCardIssueDate || ''} onChange={(e) => setFormData({ ...formData, partyCardIssueDate: e.target.value })} className="w-full border border-gray-300 rounded-lg p-2" />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-red-900 mb-2">3. Khai sinh - Quê quán - Thường trú</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <input type="text" placeholder="Nơi khai sinh - Tỉnh/Thành" value={formData.birthRegistration?.province || ''} onChange={(e) => setFormData({ ...formData, birthRegistration: { ...formData.birthRegistration, province: e.target.value } })} className="w-full border border-gray-300 rounded-lg p-2" />
+                <input type="text" placeholder="Quê quán - Tỉnh/Thành" value={formData.hometown?.province || ''} onChange={(e) => setFormData({ ...formData, hometown: { ...formData.hometown, province: e.target.value } })} className="w-full border border-gray-300 rounded-lg p-2" />
+                <input type="text" placeholder="Thường trú - Tỉnh/Thành" value={formData.permanentResidence?.province || ''} onChange={(e) => setFormData({ ...formData, permanentResidence: { ...formData.permanentResidence, province: e.target.value } })} className="w-full border border-gray-300 rounded-lg p-2" />
+                <input type="text" placeholder="Chi tiết nơi khai sinh" value={formData.birthRegistration?.detail || ''} onChange={(e) => setFormData({ ...formData, birthRegistration: { ...formData.birthRegistration, detail: e.target.value } })} className="w-full border border-gray-300 rounded-lg p-2" />
+                <input type="text" placeholder="Chi tiết quê quán" value={formData.hometown?.detail || ''} onChange={(e) => setFormData({ ...formData, hometown: { ...formData.hometown, detail: e.target.value } })} className="w-full border border-gray-300 rounded-lg p-2" />
+                <input type="text" placeholder="Chi tiết thường trú" value={formData.permanentResidence?.detail || ''} onChange={(e) => setFormData({ ...formData, permanentResidence: { ...formData.permanentResidence, detail: e.target.value } })} className="w-full border border-gray-300 rounded-lg p-2" />
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-red-900 mb-2">4. Quá trình học tập/công tác</h4>
+              <textarea rows={3} value={formData.educationWorkHistory || ''} onChange={(e) => setFormData({ ...formData, educationWorkHistory: e.target.value })} placeholder="VD: 2010-2015 học tại...; 2015-nay công tác tại..." className="w-full border border-gray-300 rounded-lg p-2" />
+            </div>
+
+            <div>
+              <h4 className="font-bold text-red-900 mb-2">5. Lịch sử chính trị & Nhân thân</h4>
+              <textarea rows={3} value={formData.politicalHistoryFamily || ''} onChange={(e) => setFormData({ ...formData, politicalHistoryFamily: e.target.value })} placeholder="Thông tin về bản thân, cha, mẹ, vợ/chồng, con..." className="w-full border border-gray-300 rounded-lg p-2" />
+            </div>
+
+            <div>
+              <h4 className="font-bold text-red-900 mb-2">10. Tệp đính kèm</h4>
+              <div className="space-y-2 mb-2">
+                {(formData.attachments || []).map((f, i) => (
+                  <div key={i} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-2">
+                    <span className="font-semibold text-gray-800 truncate">{f.name}</span>
+                    <button type="button" onClick={() => handleRemoveAttachment(i)} className="text-red-600 hover:text-red-800"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="text" placeholder="Tên tệp" value={newAttName} onChange={(e) => setNewAttName(e.target.value)} className="flex-1 border border-gray-300 rounded-lg p-2" />
+                <input type="text" placeholder="Đường dẫn URL (nếu có)" value={newAttUrl} onChange={(e) => setNewAttUrl(e.target.value)} className="flex-1 border border-gray-300 rounded-lg p-2" />
+                <button type="button" onClick={handleAddAttachment} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-3 py-2 rounded-lg">Thêm</button>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-2 border-t border-gray-200">
+              <button type="button" onClick={() => { setFormData(member); setIsProfileEditOpen(false); }} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-4 py-2 rounded-lg">Hủy</button>
+              <button type="submit" className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg shadow">{isFullSecretary ? 'Lưu thay đổi' : 'Gửi yêu cầu cập nhật'}</button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );

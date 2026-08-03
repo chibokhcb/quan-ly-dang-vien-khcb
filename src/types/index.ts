@@ -73,6 +73,11 @@ export interface PartyMember {
   updatedAt: string;
   updatedBy?: string;
   deletedAt?: string;
+
+  // Extended profile fields (Hồ sơ Đảng viên - 11 mục)
+  educationWorkHistory?: string; // 4. Quá trình học tập/công tác
+  politicalHistoryFamily?: string; // 5. Lịch sử chính trị & Nhân thân
+  attachments?: Array<{ name: string; url: string; size: number }>; // 10. Tệp đính kèm
 }
 
 export type ChangeRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';

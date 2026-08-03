@@ -382,7 +382,11 @@ export const Members: React.FC<{ onNavigate: (path: string) => void }> = ({ onNa
               {filteredMembers.map((m, idx) => (
                 <tr key={m.id} className="hover:bg-red-50/40 transition">
                   <td className="p-3 text-center font-bold text-gray-500">{idx + 1}</td>
-                  <td className="p-3 font-extrabold text-red-950 uppercase">{m.fullName}</td>
+                  <td className="p-3 font-extrabold text-red-950 uppercase">
+                    <button type="button" onClick={() => onNavigate(`/members/${m.id}`)} className="hover:underline hover:text-blue-800 text-left" title="Xem hồ sơ chi tiết 11 tab">
+                      {m.fullName}
+                    </button>
+                  </td>
                   <td className="p-3 font-mono font-semibold text-gray-700">{m.staffCode}</td>
                   <td className="p-3">{m.dateOfBirth}</td>
                   <td className="p-3">

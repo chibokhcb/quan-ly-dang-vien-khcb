@@ -45,7 +45,7 @@ const AppContent: React.FC = () => {
     if (currentPath === '/members') return <Members onNavigate={handleNavigate} />;
     if (currentPath.startsWith('/members/')) {
       const id = currentPath.split('/members/')[1];
-      return <MemberDetail memberId={id} onBack={() => handleNavigate('/members')} />;
+      return <MemberDetail memberId={id} onBack={() => handleNavigate('/members')} onNavigate={handleNavigate} />;
     }
     if (currentPath === '/me') return <MyProfile />;
     if (currentPath === '/foreign-trips') return <ForeignTrips />;
