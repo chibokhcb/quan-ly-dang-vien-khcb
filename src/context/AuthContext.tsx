@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserAccount, UserRole } from '../types';
 import { DataRepository } from '../services/repository';
+import { removeVietnameseAccents } from '../utils/vietnamese';
 
 interface AuthContextType {
   currentUser: UserAccount | null;
@@ -93,11 +94,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Synchronize PartyMember record so "Thông tin của tôi" and "Hồ sơ đảng viên" have exact match
     if (loggedUser.role !== 'GUEST') {
       const partyMembers = DataRepository.getPartyMembers();
+      const normalizedLoginName = removeVietnameseAccents(loggedUser.fullName || '');
       const existing = partyMembers.find(
-        (m) => m.workEmail?.toLowerCase() === cleanEmail || (loggedUser.staffCode && m.staffCode === loggedUser.staffCode)
+        m => (m.workEmail && m.workEmail.toLowerCase() === cleanEmail)
+          || (loggedUser.staffCode && m.staffCode && m.staffCode === loggedUser.staffCode)
+          || (!m.workEmail && m.normalizedName === normalizedLoginName)
       );
 
-      if (!existing) {
+      if (existing) {
+        // Đã có sẵn hồ sơ (nhập từ Excel) trùng tên - liên kết tài khoản với hồ sơ này
+        // thay vì tạo mới, để tránh trùng lặp Họ và tên / Chức danh, Học vị.
+        if (!existing.workEmail || !existing.userUid) {
+          DataRepository.savePartyMember({
+            id: existing.id,
+            workEmail: existing.workEmail || cleanEmail,
+            userUid: existing.userUid || loggedUser.uid,
+            staffCode: (existing.staffCode && existing.staffCode !== '000000') ? existing.staffCode : (loggedUser.staffCode || existing.staffCode),
+          }, cleanEmail);
+        }
+      } else {
         DataRepository.savePartyMember({
           id: `pm-${loggedUser.uid}`,
           stt: partyMembers.length + 1,
