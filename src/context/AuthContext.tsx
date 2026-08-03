@@ -32,9 +32,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Failed to parse saved user:', e);
       }
     }
-    // Default system admin if no saved user
-    const allUsers = DataRepository.getUsers();
-    return allUsers[0] || null;
+    // Không tự động chọn tài khoản mặc định.
+        // Nếu không có phiên đăng nhập đã lưu, bắt buộc phải qua màn hình đăng nhập.
+            return null;
   });
 
   useEffect(() => {
