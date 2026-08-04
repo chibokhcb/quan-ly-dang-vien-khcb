@@ -1,0 +1,53 @@
+{
+  "entities": {
+    "PartyMember": {
+      "title": "PartyMember",
+      "description": "Hồ sơ đảng viên chi bộ",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "fullName": { "type": "string" },
+        "workEmail": { "type": "string" },
+        "staffCode": { "type": "string" },
+        "activityStatus": { "type": "string" }
+      },
+      "required": ["id", "fullName"]
+    },
+    "ForeignTrip": {
+      "title": "ForeignTrip",
+      "description": "Đăng ký đi nước ngoài",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "memberId": { "type": "string" },
+        "destinationCountry": { "type": "string" }
+      },
+      "required": ["id", "memberId"]
+    },
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "Tài khoản người dùng",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" }
+      },
+      "required": ["uid", "email"]
+    }
+  },
+  "firestore": {
+    "/partyMembers/{id}": {
+      "schema": "PartyMember",
+      "description": "Danh sách đảng viên"
+    },
+    "/foreignTrips/{id}": {
+      "schema": "ForeignTrip",
+      "description": "Danh sách đi nước ngoài"
+    },
+    "/userAccounts/{uid}": {
+      "schema": "UserAccount",
+      "description": "Danh sách tài khoản người dùng"
+    }
+  }
+}

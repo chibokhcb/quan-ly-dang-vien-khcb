@@ -1,6 +1,6 @@
 /**
  * Unified Data Repository Layer
- * Manages reactive state in Mock Mode and handles persistence.
+ * Manages reactive state in Mock & Production Mode, with full real-time Firestore synchronization.
  */
 
 import {
@@ -41,8 +41,17 @@ import {
 } from './mockData';
 
 import { removeVietnameseAccents, normalizeFullName } from '../utils/vietnamese';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import {
+  collection,
+  doc,
+  getDocs,
+  setDoc,
+  deleteDoc,
+  onSnapshot,
+} from 'firebase/firestore';
 
-// In-memory reactive state keys for Mock Mode
+// In-memory reactive state keys
 const STORAGE_KEYS = {
   MEMBERS: 'qldv_party_members_v1',
   TRIPS: 'qldv_foreign_trips_v1',
@@ -121,6 +130,64 @@ function ensureUniqueUids<T extends { uid?: string }>(items: T[], storageKey?: s
 }
 
 export class DataRepository {
+  private static isInitialized = false;
+
+  // Real-time Firestore Sync helper
+  private static async syncToFirestore(colName: string, id: string, data: any) {
+    try {
+      if (db) {
+        await setDoc(doc(db, colName, id), data, { merge: true });
+      }
+    } catch (error) {
+      console.warn(`Firestore sync warning for ${colName}/${id}:`, error);
+    }
+  }
+
+  private static async deleteFromFirestore(colName: string, id: string) {
+    try {
+      if (db) {
+        await deleteDoc(doc(db, colName, id));
+      }
+    } catch (error) {
+      console.warn(`Firestore delete warning for ${colName}/${id}:`, error);
+    }
+  }
+
+  public static initRealtimeSync() {
+    if (this.isInitialized || !db) return;
+    this.isInitialized = true;
+
+    // Listen to partyMembers
+    try {
+      onSnapshot(collection(db, 'partyMembers'), (snapshot) => {
+        if (!snapshot.empty) {
+          const list: PartyMember[] = [];
+          snapshot.forEach((docSnap) => list.push(docSnap.data() as PartyMember));
+          saveStoredData(STORAGE_KEYS.MEMBERS, list);
+        }
+      }, (error) => {
+        console.warn('Firestore snapshot permission warning (partyMembers):', error?.message || error);
+      });
+    } catch (err) {
+      console.warn('Could not listen to partyMembers:', err);
+    }
+
+    // Listen to foreignTrips
+    try {
+      onSnapshot(collection(db, 'foreignTrips'), (snapshot) => {
+        if (!snapshot.empty) {
+          const list: ForeignTrip[] = [];
+          snapshot.forEach((docSnap) => list.push(docSnap.data() as ForeignTrip));
+          saveStoredData(STORAGE_KEYS.TRIPS, list);
+        }
+      }, (error) => {
+        console.warn('Firestore snapshot permission warning (foreignTrips):', error?.message || error);
+      });
+    } catch (err) {
+      console.warn('Could not listen to foreignTrips:', err);
+    }
+  }
+
   // --- DATE CALCULATIONS ---
   static calculateDaysRemaining(dateStr: string): number {
     try {
@@ -218,6 +285,7 @@ export class DataRepository {
     }
 
     saveStoredData(STORAGE_KEYS.MEMBERS, members);
+    this.syncToFirestore('partyMembers', savedMember.id, savedMember);
     this.addAuditLog(
       actorEmail,
       existingIndex >= 0 ? 'UPDATE_PARTY_MEMBER' : 'CREATE_PARTY_MEMBER',
@@ -252,6 +320,7 @@ export class DataRepository {
       };
 
       saveStoredData(STORAGE_KEYS.MEMBERS, members);
+      this.syncToFirestore('partyMembers', id, members[index]);
       this.addAuditLog(
         actorEmail,
         'ADJUST_MEMBER_NAME',
@@ -284,6 +353,7 @@ export class DataRepository {
       if (isPermanent) {
         members.splice(index, 1);
         saveStoredData(STORAGE_KEYS.MEMBERS, members);
+        this.deleteFromFirestore('partyMembers', id);
         this.addAuditLog(
           actorEmail,
           'PERMANENT_DELETE_MEMBER',
@@ -308,6 +378,7 @@ export class DataRepository {
         members[index].updatedBy = actorEmail;
 
         saveStoredData(STORAGE_KEYS.MEMBERS, members);
+        this.syncToFirestore('partyMembers', id, members[index]);
         this.addAuditLog(
           actorEmail,
           'SOFT_DELETE_MEMBER',
@@ -333,6 +404,7 @@ export class DataRepository {
       members[index].updatedBy = actorEmail;
 
       saveStoredData(STORAGE_KEYS.MEMBERS, members);
+      this.syncToFirestore('partyMembers', id, members[index]);
       this.addAuditLog(actorEmail, 'RESTORE_MEMBER', 'PARTY_MEMBER', id, `Khôi phục hồ sơ Đảng viên ${members[index].fullName}`);
       return true;
     }
@@ -378,6 +450,7 @@ export class DataRepository {
       trips.push(saved);
     }
     saveStoredData(STORAGE_KEYS.TRIPS, trips);
+    this.syncToFirestore('foreignTrips', saved.id, saved);
     this.addAuditLog(actorEmail, 'SAVE_FOREIGN_TRIP', 'FOREIGN_TRIP', saved.id, `Lưu thông tin chuyến đi nước ngoài`);
     return saved;
   }
@@ -388,6 +461,7 @@ export class DataRepository {
     if (index >= 0) {
       const removed = trips.splice(index, 1)[0];
       saveStoredData(STORAGE_KEYS.TRIPS, trips);
+      this.deleteFromFirestore('foreignTrips', id);
       this.addAuditLog(
         actorEmail,
         'DELETE_FOREIGN_TRIP',
@@ -462,6 +536,7 @@ export class DataRepository {
     }
 
     saveStoredData(STORAGE_KEYS.ABSENCE_REQUESTS, requests);
+    this.syncToFirestore('meetingAbsenceRequests', saved.id, saved);
     this.addAuditLog(
       actorEmail,
       index >= 0 ? 'UPDATE_ABSENCE_REQUEST' : 'CREATE_ABSENCE_REQUEST',
@@ -496,6 +571,7 @@ export class DataRepository {
       };
 
       saveStoredData(STORAGE_KEYS.ABSENCE_REQUESTS, requests);
+      this.syncToFirestore('meetingAbsenceRequests', id, requests[index]);
 
       const statusText = status === 'APPROVED' ? 'Phê duyệt' : 'Từ chối';
       this.addAuditLog(
@@ -517,6 +593,7 @@ export class DataRepository {
     if (index >= 0) {
       const removed = requests.splice(index, 1)[0];
       saveStoredData(STORAGE_KEYS.ABSENCE_REQUESTS, requests);
+      this.deleteFromFirestore('meetingAbsenceRequests', id);
       this.addAuditLog(
         actorEmail,
         'DELETE_ABSENCE_REQUEST',
@@ -555,11 +632,12 @@ export class DataRepository {
         updatedAt: now,
       };
       existing.push(newTrip);
+      this.syncToFirestore('foreignTrips', newTrip.id, newTrip);
       count++;
     });
 
     saveStoredData(STORAGE_KEYS.TRIPS, existing);
-    this.addAuditLog(actorEmail, 'IMPORT_FOREIGN_TRIPS', 'FOREIGN_TRIP', 'IMPORT', `Import thành công ${count} bản ghi chuyến đi/nhân thân nước ngoài từ file Excel/CSV`);
+    this.addAuditLog(actorEmail, 'IMPORT_FOREIGN_TRIPS', 'FOREIGN_TRIP', 'IMPORT', `Import thành công ${count} bản ghi chuyến đi nước ngoài`);
     return count;
   }
 
@@ -619,6 +697,7 @@ export class DataRepository {
     }
 
     saveStoredData(STORAGE_KEYS.CANDIDATES, candidates);
+    this.syncToFirestore('developmentCandidates', saved.id, saved);
     this.addAuditLog(actorEmail, 'SAVE_CANDIDATE', 'DEVELOPMENT_CANDIDATE', saved.id, `Lưu hồ sơ phát triển Đảng: ${saved.fullName}`);
     return saved;
   }
@@ -629,6 +708,7 @@ export class DataRepository {
     if (index >= 0) {
       const removed = candidates.splice(index, 1)[0];
       saveStoredData(STORAGE_KEYS.CANDIDATES, candidates);
+      this.deleteFromFirestore('developmentCandidates', id);
       this.addAuditLog(
         actorEmail,
         'DELETE_CANDIDATE',
@@ -658,6 +738,7 @@ export class DataRepository {
       dossiers.push(dossier);
     }
     saveStoredData(STORAGE_KEYS.ADMISSIONS, dossiers);
+    this.syncToFirestore('admissionDossiers', dossier.id, dossier);
     this.addAuditLog(actorEmail, 'SAVE_ADMISSION_DOSSIER', 'ADMISSION_DOSSIER', dossier.id, `Cập nhật hồ sơ kết nạp Đảng`);
     return dossier;
   }
@@ -668,6 +749,7 @@ export class DataRepository {
     if (index >= 0) {
       const removed = dossiers.splice(index, 1)[0];
       saveStoredData(STORAGE_KEYS.ADMISSIONS, dossiers);
+      this.deleteFromFirestore('admissionDossiers', id);
       this.addAuditLog(actorEmail, 'DELETE_ADMISSION_DOSSIER', 'ADMISSION_DOSSIER', id, `Xóa hồ sơ kết nạp Đảng: ${removed.candidateFullName}`);
       return true;
     }
@@ -681,6 +763,7 @@ export class DataRepository {
       (dossiers[index] as any).isArchived = archive;
       dossiers[index].updatedAt = new Date().toISOString();
       saveStoredData(STORAGE_KEYS.ADMISSIONS, dossiers);
+      this.syncToFirestore('admissionDossiers', id, dossiers[index]);
       this.addAuditLog(actorEmail, archive ? 'ARCHIVE_ADMISSION_DOSSIER' : 'UNARCHIVE_ADMISSION_DOSSIER', 'ADMISSION_DOSSIER', id, `${archive ? 'Lưu trữ' : 'Khôi phục lưu trữ'} hồ sơ kết nạp: ${dossiers[index].candidateFullName}`);
       return true;
     }
@@ -704,6 +787,7 @@ export class DataRepository {
       dossiers.push(dossier);
     }
     saveStoredData(STORAGE_KEYS.OFFICIALIZATIONS, dossiers);
+    this.syncToFirestore('officializationDossiers', dossier.id, dossier);
     this.addAuditLog(actorEmail, 'SAVE_OFFICIALIZATION_DOSSIER', 'OFFICIALIZATION_DOSSIER', dossier.id, `Cập nhật hồ sơ công nhận chính thức`);
     return dossier;
   }
@@ -714,6 +798,7 @@ export class DataRepository {
     if (index >= 0) {
       const removed = dossiers.splice(index, 1)[0];
       saveStoredData(STORAGE_KEYS.OFFICIALIZATIONS, dossiers);
+      this.deleteFromFirestore('officializationDossiers', id);
       this.addAuditLog(actorEmail, 'DELETE_OFFICIALIZATION_DOSSIER', 'OFFICIALIZATION_DOSSIER', id, `Xóa hồ sơ công nhận chính thức: ${removed.memberFullName}`);
       return true;
     }
@@ -727,6 +812,7 @@ export class DataRepository {
       (dossiers[index] as any).isArchived = archive;
       dossiers[index].updatedAt = new Date().toISOString();
       saveStoredData(STORAGE_KEYS.OFFICIALIZATIONS, dossiers);
+      this.syncToFirestore('officializationDossiers', id, dossiers[index]);
       this.addAuditLog(actorEmail, archive ? 'ARCHIVE_OFFICIALIZATION_DOSSIER' : 'UNARCHIVE_OFFICIALIZATION_DOSSIER', 'OFFICIALIZATION_DOSSIER', id, `${archive ? 'Lưu trữ' : 'Khôi phục lưu trữ'} hồ sơ công nhận chính thức: ${dossiers[index].memberFullName}`);
       return true;
     }
@@ -748,6 +834,7 @@ export class DataRepository {
       requests.push(req);
     }
     saveStoredData(STORAGE_KEYS.CHANGE_REQUESTS, requests);
+    this.syncToFirestore('memberChangeRequests', req.id, req);
     this.addAuditLog(actorEmail, 'SAVE_CHANGE_REQUEST', 'MEMBER_CHANGE_REQUEST', req.id, `Tạo/Cập nhật yêu cầu thay đổi hồ sơ`);
     return req;
   }
@@ -800,6 +887,7 @@ export class DataRepository {
       versions.push(pv);
     }
     saveStoredData(STORAGE_KEYS.POLICY_VERSIONS, versions);
+    this.syncToFirestore('policyVersions', pv.id, pv);
     this.addAuditLog(actorEmail, 'SAVE_POLICY_VERSION', 'POLICY_VERSION', pv.id, `Cập nhật phiên bản quy định ${pv.code}`);
     return pv;
   }
@@ -825,6 +913,7 @@ export class DataRepository {
       users.push(user);
     }
     saveStoredData(STORAGE_KEYS.USERS, users);
+    this.syncToFirestore('userAccounts', user.uid, user);
     this.addAuditLog(actorEmail, 'SAVE_USER', 'USER_ACCOUNT', user.uid, `Cập nhật tài khoản người dùng ${user.email}`);
     return user;
   }
@@ -849,6 +938,7 @@ export class DataRepository {
       users.push(saved);
     }
     saveStoredData(STORAGE_KEYS.USERS, users);
+    this.syncToFirestore('userAccounts', saved.uid, saved);
     return saved;
   }
 
@@ -858,6 +948,7 @@ export class DataRepository {
     if (index >= 0) {
       const removed = users.splice(index, 1)[0];
       saveStoredData(STORAGE_KEYS.USERS, users);
+      this.deleteFromFirestore('userAccounts', uid);
       this.addAuditLog(actorEmail, 'DELETE_USER', 'USER_ACCOUNT', uid, `Xóa tài khoản người dùng ${removed.email} (${removed.fullName})`);
       return true;
     }
@@ -890,6 +981,7 @@ export class DataRepository {
     };
     logs.unshift(newLog); // newest first
     saveStoredData(STORAGE_KEYS.AUDIT_LOGS, logs.slice(0, 500)); // cap at 500
+    this.syncToFirestore('auditLogs', newLog.id, newLog);
   }
 
   // --- APP SETTINGS ---
@@ -909,6 +1001,7 @@ export class DataRepository {
 
   static saveSettings(settings: AppSettings, actorEmail: string): void {
     saveStoredData(STORAGE_KEYS.SETTINGS, settings);
+    this.syncToFirestore('appSettings', 'global', settings);
     this.addAuditLog(actorEmail, 'SAVE_SETTINGS', 'APP_SETTINGS', 'global', `Cập nhật cấu hình hệ thống`);
   }
 
@@ -929,3 +1022,6 @@ export class DataRepository {
     return loadStoredData<RefItem[]>(STORAGE_KEYS.REF_RELIGIONS, INITIAL_REF_RELIGIONS);
   }
 }
+
+// Auto initialize Firestore listener if available
+DataRepository.initRealtimeSync();
